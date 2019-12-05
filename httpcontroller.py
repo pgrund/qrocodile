@@ -21,7 +21,7 @@ class RequestController(ABC):
         print(result)
 
     def switch_room(self, room, need_to_quote=True):
-        self.room = need_to_quote if quote(room) else room
+        self.room = quote(room) if need_to_quote else room
 
     @abstractmethod
     def perform_global_request(self, path):
@@ -37,14 +37,14 @@ class SonosController(RequestController):
         super().__init__(base_url, "sonos")
 
     def perform_global_request(self, path):
-        self.perform_request(self.base_url + "/" + path)
+        self.perform_request(path)
 
     def perform_room_request(self, path):
-        self.perform_request(self.base_url + '/' + self.room + '/' + path)
+        self.perform_request(self.room + '/' + path)
 
 
 class DummyController(RequestController):
-    def __init__(self, base_url="local:"):
+    def __init__(self, base_url="local::"):
         super().__init__(base_url, "dummy")
 
     def perform_request(self, path):
@@ -52,7 +52,7 @@ class DummyController(RequestController):
         print("DUMMY --- %s: %s" % (self.namespace, url))
 
     def perform_global_request(self, path):
-        self.perform_request(self.base_url + "/" + path)
+        self.perform_request(path)
 
     def perform_room_request(self, path):
-        self.perform_request("%s/%s/%s" % (self.base_url, self.room, path))
+        self.perform_request("%s/%s" % (self.room, path))
