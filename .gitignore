@@ -2,3 +2,5 @@ out
 .cache*
 .last-device
 .DS_Store
+*.pyc
+__pychache__*
