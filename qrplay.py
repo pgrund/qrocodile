@@ -26,21 +26,27 @@ import os
 import subprocess
 import sys
 from time import sleep
-import urllib
-import urllib2
+from httpcontroller import SonosController, DummyController
 
 # Parse the command line arguments
-arg_parser = argparse.ArgumentParser(description='Translates QR codes detected by a camera into Sonos commands.')
-arg_parser.add_argument('--default-device', default='Dining Room', help='the name of your default device/room')
-arg_parser.add_argument('--linein-source', default='Dining Room', help='the name of the device/room used as the line-in source')
-arg_parser.add_argument('--hostname', default='localhost', help='the hostname or IP address of the machine running `node-sonos-http-api`')
-arg_parser.add_argument('--skip-load', action='store_true', help='skip loading of the music library (useful if the server has already loaded it)')
-arg_parser.add_argument('--debug-file', help='read commands from a file instead of launching scanner')
+arg_parser = argparse.ArgumentParser(
+    description='Translates QR codes detected by a camera into Sonos commands.')
+arg_parser.add_argument('--default-device', default='Dining Room',
+                        help='the name of your default device/room')
+arg_parser.add_argument('--linein-source', default='Dining Room',
+                        help='the name of the device/room used as the line-in source')
+arg_parser.add_argument('--hostname', default='localhost',
+                        help='the hostname or IP address of the machine running `node-sonos-http-api`')
+arg_parser.add_argument('--skip-load', action='store_true',
+                        help='skip loading of the music library (useful if the server has already loaded it)')
+arg_parser.add_argument(
+    '--debug-file', help='read commands from a file instead of launching scanner')
 args = arg_parser.parse_args()
-print args
+print(args)
 
 
-base_url = 'http://' + args.hostname + ':5005'
+# SonosController('http://' + args.hostname + ':5005')
+controller = DummyController()
 
 # Load the most recently used device, if available, otherwise fall back on the `default-device` argument
 try:
@@ -51,6 +57,8 @@ except:
     current_device = args.default_device
     print('Initial room: ' + current_device)
 
+controller.switch_room(current_device)
+
 # Keep track of the last-seen code
 last_qrcode = ''
 
@@ -60,37 +68,20 @@ class Mode:
     PLAY_ALBUM_IMMEDIATELY = 2
     BUILD_QUEUE = 3
 
+
 current_mode = Mode.PLAY_SONG_IMMEDIATELY
 
 
-def perform_request(url):
-    print(url)
-    response = urllib2.urlopen(url)
-    result = response.read()
-    print(result)
-
-
-def perform_global_request(path):
-    perform_request(base_url + '/' + path)
-
-
-def perform_room_request(path):
-    qdevice = urllib.quote(current_device)
-    perform_request(base_url + '/' + qdevice + '/' + path)
-
-
 def switch_to_room(room):
-    global current_device
-
-    perform_global_request('pauseall')
-    current_device = room
+    controller.perform_global_request('pauseall')
+    controller.switch_room(room)
     with open(".last-device", "w") as device_file:
-        device_file.write(current_device)
+        device_file.write(room)
 
 
 def speak(phrase):
     print('SPEAKING: \'{0}\''.format(phrase))
-    perform_room_request('say/' + urllib.quote(phrase))
+    controller.perform_room_request('say/' + phrase)
 
 
 # Causes the onboard green LED to blink on and off twice.  (This assumes Raspberry Pi 3 Model B; your
@@ -122,14 +113,15 @@ def handle_command(qrcode):
     print('HANDLING COMMAND: ' + qrcode)
 
     if qrcode == 'cmd:playpause':
-        perform_room_request('playpause')
+        controller.perform_room_request('playpause')
         phrase = None
     elif qrcode == 'cmd:next':
-        perform_room_request('next')
+        controller.perform_room_request('next')
         phrase = None
     elif qrcode == 'cmd:turntable':
-        perform_room_request('linein/' + urllib.quote(args.linein_source))
-        perform_room_request('play')
+        controller.perform_room_request(
+            'linein/' + urllib.quote(args.linein_source))
+        controller.perform_room_request('play')
         phrase = 'I\'ve activated the turntable'
     elif qrcode == 'cmd:livingroom':
         switch_to_room('Living Room')
@@ -145,8 +137,8 @@ def handle_command(qrcode):
         phrase = 'Show me a card and I\'ll play the whole album'
     elif qrcode == 'cmd:buildqueue':
         current_mode = Mode.BUILD_QUEUE
-        #perform_room_request('pause')
-        perform_room_request('clearqueue')
+        # perform_room_request('pause')
+        controller.perform_room_request('clearqueue')
         phrase = 'Let\'s build a list of songs'
     elif qrcode == 'cmd:whatsong':
         perform_room_request('saysong')
@@ -174,7 +166,8 @@ def handle_library_item(uri):
     else:
         action = 'playsongfromhash'
 
-    perform_room_request('musicsearch/library/{0}/{1}'.format(action, uri))
+    controller.perform_room_request(
+        'musicsearch/library/{0}/{1}'.format(action, uri))
 
 
 def handle_spotify_item(uri):
@@ -187,7 +180,7 @@ def handle_spotify_item(uri):
     else:
         action = 'clearqueueandplaysong'
 
-    perform_room_request('spotify/{0}/{1}'.format(action, uri))
+    controller.perform_room_request('spotify/{0}/{1}'.format(action, uri))
 
 
 def handle_qrcode(qrcode):
@@ -213,7 +206,7 @@ def handle_qrcode(qrcode):
     # when adding songs to the queue)
     if not args.debug_file:
         blink_led()
-        
+
     last_qrcode = qrcode
 
 
@@ -243,14 +236,14 @@ def read_debug_script():
             sleep(4)
 
 
-perform_global_request('pauseall')
+controller.perform_global_request('pauseall')
 speak('Hello, I\'m qrocodile.')
 
 if not args.skip_load:
     # Preload library on startup (it takes a few seconds to prepare the cache)
     print('Indexing the library...')
     speak('Please give me a moment to gather my thoughts.')
-    perform_room_request('musicsearch/library/loadifneeded')
+    controller.perform_room_request('musicsearch/library/loadifneeded')
     print('Indexing complete!')
     speak('I\'m ready now!')
 
