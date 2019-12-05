@@ -120,7 +120,7 @@ def handle_command(qrcode):
         phrase = None
     elif qrcode == 'cmd:turntable':
         controller.perform_room_request(
-            'linein/' + urllib.quote(args.linein_source))
+            'linein/' + args.linein_source)
         controller.perform_room_request('play')
         phrase = 'I\'ve activated the turntable'
     elif qrcode == 'cmd:livingroom':
@@ -137,14 +137,14 @@ def handle_command(qrcode):
         phrase = 'Show me a card and I\'ll play the whole album'
     elif qrcode == 'cmd:buildqueue':
         current_mode = Mode.BUILD_QUEUE
-        # perform_room_request('pause')
+        # controller.perform_room_request('pause')
         controller.perform_room_request('clearqueue')
         phrase = 'Let\'s build a list of songs'
     elif qrcode == 'cmd:whatsong':
-        perform_room_request('saysong')
+        controller.perform_room_request('saysong')
         phrase = None
     elif qrcode == 'cmd:whatnext':
-        perform_room_request('saynext')
+        controller.perform_room_request('saynext')
         phrase = None
     else:
         phrase = 'Hmm, I don\'t recognize that command'
