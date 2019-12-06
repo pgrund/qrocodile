@@ -26,6 +26,10 @@ import os
 import subprocess
 import sys
 from time import sleep
+import cv2
+from pyzbar import pyzbar
+import imutils
+from imutils.video import VideoStream
 from httpcontroller import SonosController, DummyController
 
 # Parse the command line arguments
@@ -41,6 +45,8 @@ arg_parser.add_argument('--skip-load', action='store_true',
                         help='skip loading of the music library (useful if the server has already loaded it)')
 arg_parser.add_argument(
     '--debug-file', help='read commands from a file instead of launching scanner')
+arg_parser.add_argument(
+    '--show-frame', action='store_true', help='display videoframe with recognized code')
 args = arg_parser.parse_args()
 print(args)
 
@@ -90,13 +96,13 @@ def blink_led():
     duration = 0.15
 
     def led_off():
-        subprocess.call("echo 0 > /sys/class/leds/led0/brightness", shell=True)
+        os.system("echo 0 | sudo tee /sys/class/leds/led0/brightness > /dev/null")
 
     def led_on():
-        subprocess.call("echo 1 > /sys/class/leds/led0/brightness", shell=True)
+        os.system("echo 1 | sudo tee /sys/class/leds/led0/brightness > /dev/null")
 
     # Technically we only need to do this once when the script launches
-    subprocess.call("echo none > /sys/class/leds/led0/trigger", shell=True)
+    os.system("echo none | sudo tee /sys/class/leds/led0/trigger > /dev/null")
 
     led_on()
     sleep(duration)
@@ -210,16 +216,6 @@ def handle_qrcode(qrcode):
     last_qrcode = qrcode
 
 
-# Monitor the output of the QR code scanner.
-def start_scan():
-    while True:
-        data = p.readline()
-        qrcode = str(data)[8:]
-        if qrcode:
-            qrcode = qrcode.rstrip()
-            handle_qrcode(qrcode)
-
-
 # Read from the `debug.txt` file and handle one code at a time.
 def read_debug_script():
     # Read codes from `debug.txt`
@@ -253,11 +249,50 @@ if args.debug_file:
     # Run through a list of codes from a local file
     read_debug_script()
 else:
-    # Start the QR code reader
-    p = os.popen('/usr/bin/zbarcam --prescale=300x200', 'r')
+    # initialize video stream and wait
+    vs = VideoStream(usePiCamera=True).start()
+    sleep(2.0)
+
+    lastCommand = ''
     try:
-        start_scan()
+        while True:
+            frame = vs.read()
+            # for better performance, resize the image
+            frame = imutils.resize(frame, width=400)
+            # find and decode all barcodes in this frame
+            barcodes = pyzbar.decode(frame)
+            for barcode in barcodes:
+                # the barcode data is a bytes object so if we want to draw it
+                # on our output image we need to convert it to a string first
+                barcodeData = barcode.data.decode("utf-8")
+                barcodeType = barcode.type
+
+                # display enabled
+                if args.show_frame:
+                    # extract the bounding box location of the barcode and draw
+                    # the bounding box surrounding the barcode on the image
+                    (x, y, w, h) = barcode.rect
+                    cv2.rectangle(frame, (x, y), (x + w, y + h),
+                                  (0, 0, 255), 2)
+
+                    # draw the barcode data and barcode type on the image
+                    text = "{} ({})".format(barcodeData, barcodeType)
+                    cv2.putText(frame, text, (x, y - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+
+                if barcodeData != lastCommand:
+                    handle_qrcode(barcodeData)
+                    lastCommand = barcodeData
+
+            if args.show_frame:
+                # show the output frame
+                cv2.imshow("Barcode Scanner", frame)
+                key = cv2.waitKey(1) & 0xFF
+
     except KeyboardInterrupt:
         print('Stopping scanner...')
     finally:
-        p.close()
+         # close the output CSV file do a bit of cleanup
+        print("[INFO] cleaning up...")
+        cv2.destroyAllWindows()
+        vs.stop()
