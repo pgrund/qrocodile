@@ -72,7 +72,7 @@ try:
         current_device = device_file.read().replace('\n', '')
         print('Defaulting to last used room: ' + current_device)
 except:
-    current_device = args.default_device
+    current_device = parser.get('diskstation', 'video_device')
     print('Initial room: ' + current_device)
 
 controller.switch_room(current_device)
@@ -145,37 +145,6 @@ def handle_command(qrcode):
 
     if phrase:
         speak(phrase)
-
-
-def handle_dsaudio_item(qrData):
-
-    dsData = qrData[8:]
-    print('PLAYING AUDIO FROM DS: ' + dsData)
-    params = json.loads(dsData)
-
-    # payload = {
-    #     'api':'SYNO.AudioStation.RemotePlayer',
-    #     'method':'updateplaylist',
-    #     'library':'shared',
-    #     'id':'upnp%3Auuid%3A0e4e1c00-00f0-1000-b849-78abbb7a67ce'
-    # __SYNO_Multiple_AirPlay__
-    #
-    # 'offset': 0,
-    # 'limit':0,
-    # 'play':True,
-    # 'version':,
-    # 'containers_json':'%5B%7B%22type%22%3A%22playlist%22%2C%22id%22%3A%22playlist_shared_normal%2F182%22%7D%5D'
-
-    controller.perform_room_request("AudioStation/remote_player.cgi", params)
-
-
-def handle_dsvideo_item(qrData):
-
-    dsData = qrData[8:]
-    print('PLAYING VIDEO FROM DS: ' + dsData)
-    params = json.loads(dsData)
-
-    controller.perform_room_request('entry.cgi', params)
 
 
 def handle_library_item(uri):
