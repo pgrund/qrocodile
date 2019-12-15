@@ -30,7 +30,10 @@ import cv2
 from pyzbar import pyzbar
 import imutils
 from imutils.video import VideoStream
-from httpcontroller import SonosController, DummyController
+from sonoscontroller import SonosController
+from diskstationcontroller import DiskstationController
+
+from configparser import ConfigParser
 
 # Parse the command line arguments
 arg_parser = argparse.ArgumentParser(
@@ -51,8 +54,17 @@ args = arg_parser.parse_args()
 print(args)
 
 
-# SonosController('http://' + args.hostname + ':5005')
-controller = DummyController()
+parser = ConfigParser(allow_no_value=True)
+parser.read('controller.ini')
+
+#sonos=SonosController(parser.get('sonos', 'url') if parser.has_option('sonos', 'url') else "http:localhost")
+controller = DiskstationController(
+    parser.get('diskstation', 'url') if parser.has_option(
+        'diskstation', 'url') else "http://diskstation:5000/webapi",
+    parser.get('diskstation', 'user'),
+    parser.get('diskstation', 'password'),
+    parser.get('diskstation', 'video_device'),
+)
 
 # Load the most recently used device, if available, otherwise fall back on the `default-device` argument
 try:
@@ -79,7 +91,7 @@ current_mode = Mode.PLAY_SONG_IMMEDIATELY
 
 
 def switch_to_room(room):
-    controller.perform_global_request('pauseall')
+    # controller.perform_global_request('pauseall')
     controller.switch_room(room)
     with open(".last-device", "w") as device_file:
         device_file.write(room)
@@ -87,7 +99,7 @@ def switch_to_room(room):
 
 def speak(phrase):
     print('SPEAKING: \'{0}\''.format(phrase))
-    controller.perform_room_request('say/' + phrase)
+    controller.say(phrase)
 
 
 # Causes the onboard green LED to blink on and off twice.  (This assumes Raspberry Pi 3 Model B; your
@@ -118,24 +130,7 @@ def handle_command(qrcode):
 
     print('HANDLING COMMAND: ' + qrcode)
 
-    if qrcode == 'cmd:playpause':
-        controller.perform_room_request('playpause')
-        phrase = None
-    elif qrcode == 'cmd:next':
-        controller.perform_room_request('next')
-        phrase = None
-    elif qrcode == 'cmd:turntable':
-        controller.perform_room_request(
-            'linein/' + args.linein_source)
-        controller.perform_room_request('play')
-        phrase = 'I\'ve activated the turntable'
-    elif qrcode == 'cmd:livingroom':
-        switch_to_room('Living Room')
-        phrase = 'I\'m switching to the living room'
-    elif qrcode == 'cmd:diningandkitchen':
-        switch_to_room('Dining Room')
-        phrase = 'I\'m switching to the dining room'
-    elif qrcode == 'cmd:songonly':
+    if qrcode == 'cmd:songonly':
         current_mode = Mode.PLAY_SONG_IMMEDIATELY
         phrase = 'Show me a card and I\'ll play that song right away'
     elif qrcode == 'cmd:wholealbum':
@@ -143,37 +138,68 @@ def handle_command(qrcode):
         phrase = 'Show me a card and I\'ll play the whole album'
     elif qrcode == 'cmd:buildqueue':
         current_mode = Mode.BUILD_QUEUE
-        # controller.perform_room_request('pause')
-        controller.perform_room_request('clearqueue')
         phrase = 'Let\'s build a list of songs'
-    elif qrcode == 'cmd:whatsong':
-        controller.perform_room_request('saysong')
-        phrase = None
-    elif qrcode == 'cmd:whatnext':
-        controller.perform_room_request('saynext')
-        phrase = None
-    else:
-        phrase = 'Hmm, I don\'t recognize that command'
+
+    print("DELEGATING TO CONTROLLER")
+    phrase = controller.handle_command(qrcode)
 
     if phrase:
         speak(phrase)
 
 
+def handle_dsaudio_item(qrData):
+
+    dsData = qrData[8:]
+    print('PLAYING AUDIO FROM DS: ' + dsData)
+    params = json.loads(dsData)
+
+    # payload = {
+    #     'api':'SYNO.AudioStation.RemotePlayer',
+    #     'method':'updateplaylist',
+    #     'library':'shared',
+    #     'id':'upnp%3Auuid%3A0e4e1c00-00f0-1000-b849-78abbb7a67ce'
+    # __SYNO_Multiple_AirPlay__
+    #
+    # 'offset': 0,
+    # 'limit':0,
+    # 'play':True,
+    # 'version':,
+    # 'containers_json':'%5B%7B%22type%22%3A%22playlist%22%2C%22id%22%3A%22playlist_shared_normal%2F182%22%7D%5D'
+
+    controller.perform_room_request("AudioStation/remote_player.cgi", params)
+
+
+def handle_dsvideo_item(qrData):
+
+    dsData = qrData[8:]
+    print('PLAYING VIDEO FROM DS: ' + dsData)
+    params = json.loads(dsData)
+
+    controller.perform_room_request('entry.cgi', params)
+
+
 def handle_library_item(uri):
     if not uri.startswith('lib:'):
-        return
+        if not uri.startswith('ds'):
+            return
 
-    print('PLAYING FROM LIBRARY: ' + uri)
+        dsData = uri[8:]
+        print('PLAYING VIDEO FROM DS: ' + dsData)
+        params = json.loads(dsData)
 
-    if current_mode == Mode.BUILD_QUEUE:
-        action = 'queuesongfromhash'
-    elif current_mode == Mode.PLAY_ALBUM_IMMEDIATELY:
-        action = 'playalbumfromhash'
+        controller.perform_room_request(None, params)
+
     else:
-        action = 'playsongfromhash'
+        print('PLAYING FROM LIBRARY: ' + uri)
+        if current_mode == Mode.BUILD_QUEUE:
+            action = 'queuesongfromhash'
+        elif current_mode == Mode.PLAY_ALBUM_IMMEDIATELY:
+            action = 'playalbumfromhash'
+        else:
+            action = 'playsongfromhash'
 
-    controller.perform_room_request(
-        'musicsearch/library/{0}/{1}'.format(action, uri))
+        controller.perform_room_request(
+            'musicsearch/library/{0}/{1}'.format(action, uri))
 
 
 def handle_spotify_item(uri):
@@ -239,7 +265,7 @@ if not args.skip_load:
     # Preload library on startup (it takes a few seconds to prepare the cache)
     print('Indexing the library...')
     speak('Please give me a moment to gather my thoughts.')
-    controller.perform_room_request('musicsearch/library/loadifneeded')
+    controller.load_library_if_needed()
     print('Indexing complete!')
     speak('I\'m ready now!')
 
@@ -250,7 +276,7 @@ if args.debug_file:
     read_debug_script()
 else:
     # initialize video stream and wait
-    vs = VideoStream(usePiCamera=True).start()
+    vs = VideoStream(usePiCamera=False).start()
     sleep(2.0)
 
     lastCommand = ''
