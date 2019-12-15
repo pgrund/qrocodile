@@ -245,7 +245,7 @@ if args.debug_file:
     read_debug_script()
 else:
     # initialize video stream and wait
-    vs = VideoStream(usePiCamera=False).start()
+    vs = VideoStream(usePiCamera=True).start()
     sleep(2.0)
 
     lastCommand = ''
