@@ -1,7 +1,28 @@
 import requests
 import json
+from urllib.parse import quote, urlencode
 
-from controller import PlayController, GenerateController
+from controller import PlayController, GenerateController, TypeMode
+import logging
+
+# create logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# create formatter
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(lineno)s:%(funcName)s - %(message)s')
+
+# add formatter to ch
+ch.setFormatter(formatter)
+
+# add ch to logger
+logger.addHandler(ch)
+
 
 API_ERROR = {
     100: 'Unknown error',
@@ -16,17 +37,14 @@ API_ERROR = {
 
 
 class CGIException(Exception):
-    print("CGIEXCEPTION")
     pass
 
 
 class ConsumerFactoryException(Exception):
-    print("CONSUMERFACTORYEXCEPTION")
     pass
 
 
 class SynologyException(Exception):
-    print("SYNOLOGYAEXCEPTION")
     pass
 
 
@@ -48,16 +66,31 @@ def _validate(response):
     if 'data' in rsp:
         return rsp['data']
 
+    logger.debug('successfull call %s' % rsp)
+
 
 class DiskstationController(PlayController, GenerateController):
 
     _default_audio_device = ""
     _default_video_device = ""
     sid = None
+    _rooms = {
+        'audio': {
+            'sid': None,
+            'session': 'AudioStation',
+            'players': {},
+            'default': None
+        },
+        'video': {
+            'sid': None,
+            'session': 'VideoStation',
+            'players': {},
+            'default': None
+        }
+    }
 
-    def __init__(self, base_url, user, password, video_device="", audio_device=""):
-        self._default_video_device = video_device
-        self.room = video_device
+    def __init__(self, base_url, user, password, default_video_room="", default_audio_room=""):
+
         self.user = user
         self.password = password
         super().__init__(base_url, "diskstation")
@@ -65,35 +98,83 @@ class DiskstationController(PlayController, GenerateController):
             d = json.load(json_file)
             self.api_paths = d['data']
 
-    def auth(self, session="VideoStation"):
+        audios = self._get_audio_devices()
+        for player in audios['players']:
+            self._rooms['audio']['players'][player['name']] = {
+                'name': player['name'], 'id': player['id'], 'type': player['type']}
+
+        videos = self._get_video_devices()
+        for player in videos['device']:
+            self._rooms['video']['players'][player['title']] = {
+                'name': player['title'], 'id': player['id'], 'type': player['type']}
+
+        self.current_mode = TypeMode.VIDEO
+
+        if default_video_room and self._rooms['video']['players'][default_video_room]:
+            self._rooms['video']['default'] = self._rooms['video']['players'][default_video_room]['id']
+        else:
+            self._rooms['video']['default'] = next(
+                iter(self._rooms['video']['players'].values()))['id']
+
+        if not default_audio_room or default_audio_room not in self._rooms['audio']['players'].keys():
+            default = list(self._rooms['audio']['players'].values())[0]
+            self._rooms['audio']['default'] = default['id']
+            logger.info('%s not in device list, using %s instead',
+                        default_audio_room, default['name'])
+        else:
+            self._rooms['audio']['default'] = self._rooms['audio']['players'][default_audio_room]['id']
+
+    def auth(self, session=None):
+        if not session:
+            session = self._rooms[self.current_mode]['session']
         payload = {'api': 'SYNO.API.Auth', 'version': 2, 'method': 'login',
                    'account': self.user, 'passwd': self.password, 'session': session}
         response = requests.get(self.base_url + '/auth.cgi', params=payload)
         data = _validate(response)
+        logger.debug('auth succeeded for %s ' % session)
+        self._rooms[self.current_mode]['sid'] = data['sid']
         return data['sid']
 
     def switch_room(self, room, need_to_quote=True):
-        self.room = room
+
+        if room in list(self._rooms[self.current_mode]['players'].keys()):
+            self._rooms[self.current_mode]['default'] = self._rooms[self.current_mode]['players'][room]['id']
+        else:
+            logger.warn('cannot switch to room %s, not found ...', room)
         if need_to_quote:
-            print("controller is encoding at request time ...")
+            logger.warning("controller is encoding at request time ...")
 
     def handle_command(self, qrcode):
-        if qrcode == 'cmd:playpause':
+        if self.current_mode == TypeMode.AUDIO:
+            params = {
+                'api': "SYNO.AudioStation.RemotePlayer",
+                'method': 'control',
+                'id': self._rooms[self.current_mode]['default'],
+                'version': 2,
+                'action': 'pause'
+            }
+        else:
             params = {
                 "api": "SYNO.VideoStation2.Controller.Playback",
                 "method": "pause",
                 "version": 2
             }
-            self.perform_room_request('entry.cgi', params)
-            return None
+
+        if qrcode == 'cmd:playpause':
+            if self.current_mode == TypeMode.AUDIO:
+                params['action'] = 'pause'
+                return self.perform_room_request("AudioStation/remote_player.cgi", params)
+            else:
+                params['method'] = "pause"
+                return self.perform_room_request('entry.cgi', params)
+
         elif qrcode == 'cmd:stop':
-            params = {
-                "api": "SYNO.VideoStation2.Controller.Playback",
-                "method": "stop",
-                "version": 2
-            }
-            self.perform_room_request('entry.cgi', params)
-            return None
+            if self.current_mode == TypeMode.AUDIO:
+                params['action'] = 'stop'
+                return self.perform_room_request("AudioStation/remote_player.cgi", params)
+            else:
+                params['method'] = "stop"
+                return self.perform_room_request('entry.cgi', params)
         else:
             return 'Hmm, I don\'t recognize that command : {}'.format(qrcode)
 
@@ -101,28 +182,23 @@ class DiskstationController(PlayController, GenerateController):
         if not payload:
             payload = {}
 
-        print('first', payload)
-
         if not '_sid' in payload:
-            if not self.sid:
-                print("need to auth first...")
-                self.sid = self.auth()
+            if not self._rooms[self.current_mode]['sid']:
+                logger.info("need to auth first...")
+                self.auth(self._rooms[self.current_mode]['session'])
 
-            payload['_sid'] = self.sid
-        print('sid', payload)
+            payload['_sid'] = self._rooms[self.current_mode]['sid']
 
         if not path:
             if payload['api']:
                 api = payload['api']
                 path = self.api_paths[api]['path']
 
-        print('path', payload, path)
+        params = urlencode(payload, quote_via=quote)
+        response = requests.get(self.base_url + '/' + path, params=params)
 
-        response = requests.get(self.base_url + '/' + path, params=payload)
-        print('!!!REQUEST', response.url, response)
-        data = _validate(response)
-
-        return data
+        logger.debug('URL: %s  ->%s', response.url, response.status_code)
+        return _validate(response)
 
     def perform_global_request(self, path, payload=None):
         # self.perform_request(path, payload)
@@ -130,71 +206,20 @@ class DiskstationController(PlayController, GenerateController):
 
     def perform_room_request(self, path, payload=None, room=None):
         if room is None:
-            if self.room is None:
-                room = self._default_video_device
-                print("no room set, using default: %s" % room)
-        elif room != self.room:
+            if self._rooms[self.current_mode]['default'] is None:
+                raise SynologyException('no room and no default room')
+        elif room != self._rooms[self.current_mode]['default']:
             self.switch_room(room, False)
 
         if not payload:
             payload = {}
 
-        payload['device_id'] = self.room
+        payload['device_id'] = self._rooms[self.current_mode]['default']
 
         self.perform_request(path, payload)
 
-    def play_video(self, data, device_id=None):
-
-        test = data[8:].split('=')
-        print(data, test)
-        (key, num) = test
-
-        if not (key or num):
-            print("!!!! missing identifier to play ")
-            return
-
-        if not device_id:
-            if not self._default_video_device:
-                print("!!!! missing device ")
-                return
-            else:
-                device_id = self._default_video_device
-
-        params = {
-            "device_id": device_id,
-            "playback_target": "file_id",
-            "api": "SYNO.VideoStation2.Controller.Playback",
-            "method": "play",
-            "version": 2}
-        params[key] = num
-
-        self.perform_room_request('entry.cgi', params)
-
-    def play_audio_playlist(self, data, device_id=None):
-        pass
-        # payloadPlaylist = {
-        #     'api': 'SYNO.AudioStation.RemotePlayer',
-        #     method: updateplaylist
-        #     library: shared
-        #     id: uuid: 0e4e1c00-00f0-1000-b849-78abbb7a67ce
-        #     offset: -1
-        #     limit: 0
-        #     play: false
-        #     version: 3
-        #     keep_shuffle_order: false
-        #     containers_json: [
-        #         {"type": "playlist", "id": "playlist_shared_smart/Benjamin Blümchen"}]
-        # }
-        # payloadPlay = {'api': 'SYNO.AudioStation.RemotePlayer',
-        #                'method': 'control',
-        #                'id': device_id,  # uuid:0e4e1c00-00f0-1000-b849-78abbb7a67ce
-        #                'version': 3,
-        #                'action': 'play'
-        #
-        #
-        #       }
-
     def get_episode(self, id, show_id):
+        self.current_mode = TypeMode.VIDEO
         params = {
             'api': 'SYNO.VideoStation2.TVShowEpisode',
             'version': 1,
@@ -211,12 +236,13 @@ class DiskstationController(PlayController, GenerateController):
         return {
             'song': episode['tagline'],
             'album': episode['title'],
-            'arturl': self.base_url+'/entry.cgi?type=tvshow&id='+show_id+'&api=SYNO.VideoStation2.Poster&method=get&version=1&resolution='+'%2'+'22x%22&_sid='+self.sid,
+            'arturl': self.base_url+'/entry.cgi?type=tvshow&id='+show_id+'&api=SYNO.VideoStation2.Poster&method=get&version=1&resolution='+'%2'+'22x%22&_sid='+self._rooms[self.current_mode]['sid'],
             'data': 'dsvideo:{"api": "SYNO.VideoStation2.Controller.Playback", "method": "play",' +
             '"file_id": %s, "playback_target": "file_id", "version": 2}' % file_id
         }
 
     def get_movie(self, id):
+        self.current_mode = TypeMode.VIDEO
         params = {
             'api': 'SYNO.VideoStation2.Movie',
             'version': 1,
@@ -231,19 +257,160 @@ class DiskstationController(PlayController, GenerateController):
         return {
             'song': title.strip(),
             'album': subtitle.strip() if subtitle else None,
-            'arturl': self.base_url+'/entry.cgi?type=movie&id='+id+'&api=SYNO.VideoStation2.Poster&method=get&version=1&resolution='+'%2'+'22x%22&_sid='+self.sid,
+            'arturl': self.base_url+'/entry.cgi?type=movie&id='+id+'&api=SYNO.VideoStation2.Poster&method=get&version=1&resolution=%222x%22&_sid='+self._rooms[self.current_mode]['sid'],
             'data': 'dsvideo:{"api": "SYNO.VideoStation2.Controller.Playback", "method": "play",' +
             '"file_id": %s, "playback_target": "file_id", "version": 2}' % file_id
         }
 
-    def get_library_track(self, uri):
-        data = uri[8:]
-        # TODO check movie, tvshow episode, ...
-        if data.startswith("tvshow"):
-            (tvshowepisode, tvshow) = data.split("|")
-            return self.get_episode(tvshowepisode.split('=')[1], tvshow.split("=")[1])
-        elif data.startswith("movie"):
-            print('get movie', data)
-            return self.get_movie(data.split("=")[1])
+    def get_by_artist(self, artist=""):
+
+        self.current_mode = TypeMode.AUDIO
+
+        payload = {
+            'limit': 1000,
+            'method': 'list',
+            'library': 'shared',
+            'api': 'SYNO.AudioStation.Artist',
+            'artist': artist,
+            'additional': '["file","song","extra"]',
+            'version': 3,
+        }
+        result = self.perform_request('AudioStation/artist.cgi', payload)
+        matchedArtist = None
+        for x in result['artists']:
+            if x['name'].lower() == artist.lower():
+                matchedArtist = x
+                break
+
+        if not matchedArtist:
+            raise SynologyException('nop artist for ' + artist)
         else:
-            print('unknown ...', uri)
+            artist = matchedArtist['name']
+
+        queryParams = urlencode({'api': 'SYNO.AudioStation.Cover',
+                                 'output_default': 'true',
+                                 'version': 3,
+                                 'library': 'shared',
+                                 'method': 'getcover',
+                                 'view': 'default',
+                                 'artist_name': artist,
+                                 '_sid': self._rooms[self.current_mode]['sid']
+                                 }, quote_via=quote)
+
+        return {
+            'song': artist,
+            'arturl': self.base_url+'/AudioStation/cover.cgi?'+queryParams,
+            'data': '[{"type":"artist","sort_by":"name","sort_direction":"ASC","artist":"%s"}]' % artist
+        }
+
+    def get_library_track(self, uri):
+        dsMode, dsData = uri[:7], uri[8:]
+        data = dict(item.split('=') for item in dsData.split('|'))
+
+        if dsMode == 'dsvideo':
+            if "tvshow_id" in data:
+                return self.get_episode(data['tvshowepisode_id'], data['tvshow_id'])
+            elif "movie_id" in data:
+                return self.get_movie(data['movie_id'])
+            else:
+                print('unknown video ...', uri)
+        elif dsMode == 'dsaudio':
+            if "song" in data:
+                logger.debug("get song: %s > %s > %s > %s" %
+                             (data['song'], data['album'], data['album_artist'], data['artist']))
+                return {
+                    'artist': data['artist'] if 'artist' in data else 'artist',
+                    'album_artist': data['album_artist'] if 'album_artist' in data else 'album_artist',
+                    'album': data['album'] if 'album' in data else 'album',
+                    'song': data['song'],
+                }
+
+            elif "album" in data:
+                logger.debug("get album: %s > %s > %s" %
+                             (data['album'], data['album_artist'], data['artist']))
+                return {
+                    'artist': data['artist'] if 'artist' in data else 'artist',
+                    'album_artist': data['album_artist'] if 'album_artist' in data else 'album_artist',
+                    'song': data['album'],
+                    'data': '[{"type":"album","sort_by":"title","sort_direction":"ASC","album":"%s","album_artist":"%s","artist":"%s"}]' % (data['album'], data['album_artist'], data['artist'])
+                }
+            elif "artist" in data:
+                return self.get_by_artist(data['artist'])
+            else:
+                logger.warn("unknown audio %s ...", uri)
+        else:
+            logger.warn('unknown %s ...', uri)
+
+    def play_audio(self, containers_json):
+        self.current_mode = TypeMode.AUDIO
+
+        payloadLoad = {
+            'api': 'SYNO.AudioStation.RemotePlayer',
+            'method': 'updateplaylist',
+            'library': 'shared',
+            'id': self._rooms[self.current_mode]['default'],
+            'offset': -1,
+            'limit': 0,
+            'play': 'false',
+            'version': 3,
+            'keep_shuffle_order': 'false',
+            'containers_json': containers_json
+        }
+
+        responseLoad = self.perform_request(
+            'AudioStation/remote_player.cgi', payloadLoad)
+
+        logger.debug('==>load %s', responseLoad)
+
+        payloadPlay = {
+            'api': 'SYNO.AudioStation.RemotePlayer',
+            'method': 'control',
+            'id': self._rooms[self.current_mode]['default'],
+            'version': 3,
+            'action': 'play',
+            'value': 0
+        }
+
+        responsePlay = self.perform_request(
+            'AudioStation/remote_player.cgi', payloadPlay)
+
+        logger.debug('==>play %s', responsePlay)
+
+    def _get_audio_devices(self):
+        self.current_mode = TypeMode.AUDIO
+        payload = {
+            'api': 'SYNO.AudioStation.RemotePlayer',
+            'version': 2,
+            'method': 'list'
+        }
+        return self.perform_request(
+            'AudioStation/remote_player.cgi', payload)
+
+    def _get_video_devices(self):
+        self.current_mode = TypeMode.VIDEO
+        payload = {
+            'api': 'SYNO.VideoStation2.Controller.Device',
+            'version': 1,
+            'method': 'list',
+            'limit': 500
+        }
+        return self.perform_request('entry.cgi', payload)
+
+    def add_playlist(self, playlist, offset=-1):
+
+        self.current_mode = TypeMode.AUDIO
+
+        payloadPlaylist = {
+            'api': 'SYNO.AudioStation.RemotePlayer',
+            'method': 'updateplaylist',
+            'library': 'shared',
+            'id': self._rooms[self.current_mode]['default'],
+            'offset': offset,
+            'limit': 0,
+            'play': 'true',
+            'version': 3,
+            'containers_json': '[{"type": "playlist", "id": "%s"}]' % playlist
+        }
+
+        return self.perform_request(
+            'AudioStation/remote_player.cgi', payload=payloadPlaylist)
