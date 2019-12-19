@@ -263,7 +263,7 @@ def generate_cards():
             (song, album, artist)=process_spotify_track(line, index)
         elif line.startswith('lib:'):
             (song, album, artist)=process_library_track(sonos, line, index)
-        elif line.startswith('dsvideo:'):
+        elif line.startswith('dsvideo:') or line.startswith('dsaudio:'):
             (song, album, artist)=process_library_track(ds, line, index)
         else:
             print('Failed to handle URI: ' + line)
