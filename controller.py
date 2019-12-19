@@ -15,11 +15,17 @@ def strip_title_junk(title):
     return title
 
 
+class TypeMode:
+    AUDIO = 'audio'
+    VIDEO = 'video'
+
+
 class RequestController(ABC):
 
     def __init__(self, base_url, namespace="default"):
         self.base_url = base_url
         self.room = "default"
+        self.current_mode = TypeMode.VIDEO
         self.namespace = namespace
         super().__init__()
 
@@ -51,6 +57,10 @@ class PlayController(RequestController):
 
     def say(self, phrase):
         pass
+
+    def switch_mode(self, mode):
+        print('mode switched to', mode)
+        self.current_mode = mode
 
 
 class GenerateController(RequestController):
