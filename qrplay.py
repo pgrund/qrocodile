@@ -32,6 +32,7 @@ import imutils
 from imutils.video import VideoStream
 from sonoscontroller import SonosController
 from diskstationcontroller import DiskstationController
+from controller import TypeMode
 
 from configparser import ConfigParser
 
@@ -57,13 +58,14 @@ print(args)
 parser = ConfigParser(allow_no_value=True)
 parser.read('controller.ini')
 
-#sonos=SonosController(parser.get('sonos', 'url') if parser.has_option('sonos', 'url') else "http:localhost")
+# sonos=SonosController(parser.get('sonos', 'url') if parser.has_option('sonos', 'url') else "http:localhost")
 controller = DiskstationController(
     parser.get('diskstation', 'url') if parser.has_option(
         'diskstation', 'url') else "http://diskstation:5000/webapi",
     parser.get('diskstation', 'user'),
     parser.get('diskstation', 'password'),
-    parser.get('diskstation', 'video_device'),
+    parser.get('rooms', 'tv_living_room'),
+    parser.get('rooms', 'tv_living_room')
 )
 
 # Load the most recently used device, if available, otherwise fall back on the `default-device` argument
@@ -72,7 +74,7 @@ try:
         current_device = device_file.read().replace('\n', '')
         print('Defaulting to last used room: ' + current_device)
 except:
-    current_device = parser.get('diskstation', 'video_device')
+    current_device = parser.get('rooms', 'tv_living_room')
     print('Initial room: ' + current_device)
 
 controller.switch_room(current_device)
@@ -152,11 +154,24 @@ def handle_library_item(uri):
         if not uri.startswith('ds'):
             return
 
-        dsData = uri[8:]
-        print('PLAYING VIDEO FROM DS: ' + dsData)
-        params = json.loads(dsData)
+        dsMode, dsData = uri[:7], uri[8:]
+        print(dsMode, dsData)
+        if dsMode == 'dsvideo':
+            controller.switch_mode(TypeMode.VIDEO)
 
-        controller.perform_room_request(None, params)
+            print('PLAYING DS VIDEO: %s (%s)' % (dsData, dsMode))
+            params = json.loads(dsData)
+
+            controller.perform_room_request(None, params)
+
+        elif dsMode == 'dsaudio':
+            controller.switch_mode(TypeMode.AUDIO)
+
+            print('PLAYING DS AUDIO: %s (%s)' % (dsData, dsMode))
+
+            controller.play_audio(dsData)
+        else:
+            print('UNKNOWN DS ITEM', dsMode, dsData)
 
     else:
         print('PLAYING FROM LIBRARY: ' + uri)
