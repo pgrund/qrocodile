@@ -444,6 +444,7 @@ class DiskstationController(PlayController, GenerateController):
 
     def play_audio(self, containers_json):
         self.current_mode = TypeMode.AUDIO
+        song = None
 
         if containers_json.startswith('music_'):
             song = containers_json
