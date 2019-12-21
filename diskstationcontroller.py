@@ -152,6 +152,12 @@ class DiskstationController(PlayController, GenerateController):
         if need_to_quote:
             logger.warning("controller is encoding at request time ...")
 
+    def switch_mode(self, mode):
+        try:
+            self.current_mode = mode
+        except:
+            self.current_mode = TypeMode.VIDEO
+
     def handle_command(self, qrcode):
         if self.current_mode == TypeMode.AUDIO:
             params = {
