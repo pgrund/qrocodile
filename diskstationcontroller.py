@@ -320,7 +320,7 @@ class DiskstationController(PlayController, GenerateController):
             'album': song['additional']['song_tag']['album'],
             'artist':song['additional']['song_tag']['artist'],
             'arturl': self.base_url+'/AudioStation/cover.cgi?'+queryParams,
-            'data': 'tbd'
+            'data': 'dsaudio:music_id='+id
         }
 
 
@@ -372,7 +372,7 @@ class DiskstationController(PlayController, GenerateController):
             'album': album_artist,
             'artist': artist,
             'arturl': self.base_url+'/AudioStation/cover.cgi?'+queryParams,
-            'data': '[{"type":"album","sort_by":"name","sort_direction":"ASC","album":"%s", "album_artist":"%s"}]' % (album, album_artist)
+            'data': 'dsaudio:[{"type":"album","sort_by":"name","sort_direction":"ASC","album":"%s", "album_artist":"%s"}]' % (album, album_artist)
         }
 
     def get_artist(self, artist=""):
@@ -413,7 +413,7 @@ class DiskstationController(PlayController, GenerateController):
         return {
             'song': artist,
             'arturl': self.base_url+'/AudioStation/cover.cgi?'+queryParams,
-            'data': '[{"type":"artist","sort_by":"name","sort_direction":"ASC","artist":"%s"}]' % artist
+            'data': 'dsaudio:[{"type":"artist","sort_by":"name","sort_direction":"ASC","artist":"%s"}]' % artist
         }
 
     def get_library_track(self, uri):
