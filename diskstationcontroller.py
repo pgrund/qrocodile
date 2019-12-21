@@ -126,7 +126,7 @@ class DiskstationController(PlayController, GenerateController):
 
         self.__set_players()
         try:
-            self.__set_defauls(default_video_room, default_audio_room)
+            self.__set_defaults(default_video_room, default_audio_room)
         except:
             logger.error('could net set defaults: %s, %s',
                          default_video_room, default_audio_room)
