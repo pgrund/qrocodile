@@ -152,13 +152,13 @@ def process_library_track(controller, uri, index):
     data=track['data']if 'data' in track else uri
     arturl=track['arturl'] if 'arturl' in track else 'https://raw.githubusercontent.com/google/material-design-icons/master/action/drawable-xxxhdpi/ic_movie_outline_black_48dp.png'
 
-    print(arturl)
     # Determine the output image file names
     qrout='out/{0}qr.png'.format(index)
     artout='out/{0}art.jpg'.format(index)
 
     # Create a QR code from the track URI
-    print(subprocess.check_output(['qrencode', '-o', qrout, data]))
+    print(subprocess.check_output(['qrencode', '-o', qrout, data.encode('iso-8859-1')]))
+
 
     # Fetch the artwork and save to the output directory
     print(subprocess.check_output(['curl', arturl, '-o', artout]))
