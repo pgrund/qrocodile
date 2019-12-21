@@ -298,7 +298,6 @@ class DiskstationController(PlayController, GenerateController):
         }
         
         result = self.perform_request('AudioStation/song.cgi', payload)
-        print(result)
         song = result['songs'][0]
         queryParams=urlencode({'api': 'SYNO.AudioStation.Cover',
                                  'output_default': 'true',
@@ -340,7 +339,6 @@ class DiskstationController(PlayController, GenerateController):
 
         matchedAlbum = None
         for x in result['albums']:
-            print('%s: %s => %s' %(x['name'].lower()==album.lower(), x['name'], album))
             if x['name'].lower() == album.lower():
                 matchedAlbum = x
                 break
