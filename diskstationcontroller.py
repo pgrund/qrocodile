@@ -185,7 +185,20 @@ class DiskstationController(PlayController, GenerateController):
         elif qrcode == 'cmd:stop':
             if self.current_mode == TypeMode.AUDIO:
                 params['action'] = 'stop'
-                return self.perform_room_request("AudioStation/remote_player.cgi", params)
+                self.perform_room_request("AudioStation/remote_player.cgi", params)
+                
+                paramsClean = {
+                    'api': 'SYNO.AudioStation.RemotePlayer', 
+                    'method': 'updateplaylist',
+                    'id': self._rooms[self.current_mode]['default'],
+                    'offset': 0,
+                    'limit': 200,
+                    'songs':'', 
+                    'updated_index': '-1',
+                    'version': 3
+                    }
+                self.perform_room_request("AudioStation/remote_player.cgi", paramsClean)
+
             else:
                 params['method'] = "stop"
                 return self.perform_room_request('entry.cgi', params)
