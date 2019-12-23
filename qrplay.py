@@ -295,7 +295,14 @@ else:
                     cv2.putText(frame, text, (x, y - 10),
                                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
-                if barcodeData != lastCommand:
+                if barcodeData == "cmd:playpause":
+                    handle_qrcode(barcodeData)
+                    lastCommand = barcodeData
+                    print('special handling play/pause, wait 5s ...')
+                    sleep(5)
+                    print('... now checking again')
+
+                elif barcodeData != lastCommand:
                     handle_qrcode(barcodeData)
                     lastCommand = barcodeData
 
