@@ -68,6 +68,7 @@ controller = DiskstationController(
     parser.get('rooms', 'tv_living_room')
 )
 
+isPI = parser.getboolean('DEFAULT', 'isPI', fallback=True)
 # Load the most recently used device, if available, otherwise fall back on the `default-device` argument
 try:
     with open('.last-device', 'r') as device_file:
@@ -107,6 +108,10 @@ def speak(phrase):
 # Causes the onboard green LED to blink on and off twice.  (This assumes Raspberry Pi 3 Model B; your
 # mileage may vary.)
 def blink_led():
+    if not isPI:
+        print('not in PI mode, LED BLINK!!!')
+        return
+
     duration = 0.15
 
     def led_off():
@@ -260,7 +265,7 @@ if args.debug_file:
     read_debug_script()
 else:
     # initialize video stream and wait
-    vs = VideoStream(usePiCamera=True).start()
+    vs = VideoStream(usePiCamera=isPI).start()
     sleep(2.0)
 
     lastCommand = ''
