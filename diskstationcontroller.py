@@ -181,24 +181,12 @@ class DiskstationController(PlayController, GenerateController):
             else:
                 params['method'] = "pause"
                 return self.perform_room_request('entry.cgi', params)
-
         elif qrcode == 'cmd:stop':
             if self.current_mode == TypeMode.AUDIO:
                 params['action'] = 'stop'
-                self.perform_room_request("AudioStation/remote_player.cgi", params)
-                
-                paramsClean = {
-                    'api': 'SYNO.AudioStation.RemotePlayer', 
-                    'method': 'updateplaylist',
-                    'id': self._rooms[self.current_mode]['default'],
-                    'offset': 0,
-                    'limit': 200,
-                    'songs':'', 
-                    'updated_index': '-1',
-                    'version': 3
-                    }
-                self.perform_room_request("AudioStation/remote_player.cgi", paramsClean)
-
+                response = self.perform_room_request("AudioStation/remote_player.cgi", params)
+                self.clear_audio()
+                return response
             else:
                 params['method'] = "stop"
                 return self.perform_room_request('entry.cgi', params)
@@ -216,6 +204,11 @@ class DiskstationController(PlayController, GenerateController):
             else:
                 params['method'] = "prev"
                 return self.perform_room_request('entry.cgi', params)
+        elif qrcode == 'cmd:clear':
+            if self.current_mode == TypeMode.AUDIO:
+                return self.clear_audio()                
+            else:
+                return 'No clear command for video!!!'
         else:
             return 'Hmm, I don\'t recognize that command : {}'.format(qrcode)
 
@@ -257,7 +250,7 @@ class DiskstationController(PlayController, GenerateController):
 
         payload['device_id'] = self._rooms[self.current_mode]['default']
 
-        self.perform_request(path, payload)
+        return self.perform_request(path, payload)
 
     def get_episode(self, id, show_id):
         self.current_mode = TypeMode.VIDEO
@@ -454,6 +447,21 @@ class DiskstationController(PlayController, GenerateController):
                 logger.warn("unknown audio %s ...", uri)
         else:
             logger.warn('unknown %s ...', uri)
+
+    def clear_audio(self):
+        self.current_mode = TypeMode.AUDIO
+
+        paramsClean = {
+            'api': 'SYNO.AudioStation.RemotePlayer', 
+            'method': 'updateplaylist',
+            'id': self._rooms[self.current_mode]['default'],
+            'offset': 0,
+            'limit': 200,
+            'songs':'', 
+            'updated_index': '-1',
+            'version': 3
+            }
+        self.perform_room_request("AudioStation/remote_player.cgi", paramsClean)
 
     def play_audio(self, containers_json):
         self.current_mode = TypeMode.AUDIO
