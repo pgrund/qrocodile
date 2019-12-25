@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 # Copyright (c) 2018 Chris Campbell
 #
@@ -36,6 +37,16 @@ from controller import TypeMode
 
 from configparser import ConfigParser
 
+import gettext
+
+parser = ConfigParser(allow_no_value=True)
+parser.read('qrocodile.ini')
+
+el = gettext.translation('base', localedir='locales', languages=[
+                         parser.get('DEFAULT', 'lang', fallback="en")])
+el.install()
+_ = el.gettext
+
 # Parse the command line arguments
 arg_parser = argparse.ArgumentParser(
     description='Translates QR codes detected by a camera into Sonos commands.')
@@ -52,11 +63,6 @@ arg_parser.add_argument(
 arg_parser.add_argument(
     '--show-frame', action='store_true', help='display videoframe with recognized code')
 args = arg_parser.parse_args()
-print(args)
-
-
-parser = ConfigParser(allow_no_value=True)
-parser.read('controller.ini')
 
 # sonos=SonosController(parser.get('sonos', 'url') if parser.has_option('sonos', 'url') else "http:localhost")
 controller = DiskstationController(
@@ -73,10 +79,10 @@ isPI = parser.getboolean('DEFAULT', 'isPI', fallback=True)
 try:
     with open('.last-device', 'r') as device_file:
         current_device = device_file.read().replace('\n', '')
-        print('Defaulting to last used room: ' + current_device)
+        print(_('Defaulting to last used room: ') + current_device)
 except:
     current_device = parser.get('rooms', 'tv_living_room')
-    print('Initial room: ' + current_device)
+    print(_('Initial room: ') + current_device)
 
 controller.switch_room(current_device)
 
@@ -109,7 +115,7 @@ def speak(phrase):
 # mileage may vary.)
 def blink_led():
     if not isPI:
-        print('not in PI mode, LED BLINK!!!')
+        print(_('not in PI mode, LED BLINK!!!'))
         return
 
     duration = 0.15
@@ -135,19 +141,19 @@ def blink_led():
 def handle_command(qrcode):
     global current_mode
 
-    print('HANDLING COMMAND: ' + qrcode)
+    print(_('HANDLING COMMAND: ') + qrcode)
 
     if qrcode == 'cmd:songonly':
         current_mode = Mode.PLAY_SONG_IMMEDIATELY
-        phrase = 'Show me a card and I\'ll play that song right away'
+        phrase = _('Show me a card and I\'ll play that song right away')
     elif qrcode == 'cmd:wholealbum':
         current_mode = Mode.PLAY_ALBUM_IMMEDIATELY
-        phrase = 'Show me a card and I\'ll play the whole album'
+        phrase = _('Show me a card and I\'ll play the whole album')
     elif qrcode == 'cmd:buildqueue':
         current_mode = Mode.BUILD_QUEUE
-        phrase = 'Let\'s build a list of songs'
+        phrase = _('Let\'s build a list of songs')
 
-    print("DELEGATING TO CONTROLLER")
+    print(_("DELEGATING TO CONTROLLER"))
     phrase = controller.handle_command(qrcode)
 
     if phrase:
@@ -160,11 +166,10 @@ def handle_library_item(uri):
             return
 
         dsMode, dsData = uri[:7], uri[8:]
-        print(dsMode, dsData)
         if dsMode == 'dsvideo':
             controller.switch_mode(TypeMode.VIDEO)
 
-            print('PLAYING DS VIDEO: %s (%s)' % (dsData, dsMode))
+            print(_('PLAYING DS VIDEO: ') + dsData + ' (' + dsMode + ')')
             params = json.loads(dsData)
 
             controller.perform_room_request(None, params)
@@ -172,14 +177,14 @@ def handle_library_item(uri):
         elif dsMode == 'dsaudio':
             controller.switch_mode(TypeMode.AUDIO)
 
-            print('PLAYING DS AUDIO: %s (%s)' % (dsData, dsMode))
+            print(_('PLAYING DS AUDIO: ') + dsData + ' (' + dsMode + ')')
 
             controller.play_audio(dsData)
         else:
-            print('UNKNOWN DS ITEM', dsMode, dsData)
+            print(_('UNKNOWN DS ITEM : ') + dsData + ' (' + dsMode + ')')
 
     else:
-        print('PLAYING FROM LIBRARY: ' + uri)
+        print(_('PLAYING FROM LIBRARY: ') + uri)
         if current_mode == Mode.BUILD_QUEUE:
             action = 'queuesongfromhash'
         elif current_mode == Mode.PLAY_ALBUM_IMMEDIATELY:
@@ -192,7 +197,7 @@ def handle_library_item(uri):
 
 
 def handle_spotify_item(uri):
-    print('PLAYING FROM SPOTIFY: ' + uri)
+    print(_('PLAYING FROM SPOTIFY: ') + uri)
 
     if current_mode == Mode.BUILD_QUEUE:
         action = 'queue'
@@ -210,10 +215,10 @@ def handle_qrcode(qrcode):
     # Ignore redundant codes, except for commands like "whatsong", where you might
     # want to perform it multiple times
     if qrcode == last_qrcode and not qrcode.startswith('cmd:'):
-        print('IGNORING REDUNDANT QRCODE: ' + qrcode)
+        print(_('IGNORING REDUNDANT QRCODE: ') + qrcode)
         return
 
-    print('HANDLING QRCODE: ' + qrcode)
+    print(_('HANDLING QRCODE: ') + qrcode)
 
     if qrcode.startswith('cmd:'):
         handle_command(qrcode)
@@ -248,17 +253,17 @@ def read_debug_script():
 
 
 controller.perform_global_request('pauseall')
-speak('Hello, I\'m qrocodile.')
+speak(_('Hello, I\'m qrocodile.'))
 
 if not args.skip_load:
     # Preload library on startup (it takes a few seconds to prepare the cache)
-    print('Indexing the library...')
-    speak('Please give me a moment to gather my thoughts.')
+    print(_('Indexing the library...'))
+    speak(_('Please give me a moment to gather my thoughts.'))
     controller.load_library_if_needed()
-    print('Indexing complete!')
-    speak('I\'m ready now!')
+    print(_('Indexing complete!'))
+    speak(_('I\'m ready now!'))
 
-speak('Show me a card!')
+speak(_('Show me a card!'))
 
 if args.debug_file:
     # Run through a list of codes from a local file
@@ -298,9 +303,9 @@ else:
                 if barcodeData == "cmd:playpause":
                     handle_qrcode(barcodeData)
                     lastCommand = barcodeData
-                    print('special handling play/pause, wait 5s ...')
+                    print(_('special handling play/pause, wait 5s'))
                     sleep(5)
-                    print('... now checking again')
+                    print(_('... now checking again'))
 
                 elif barcodeData != lastCommand:
                     handle_qrcode(barcodeData)
@@ -312,9 +317,9 @@ else:
                 key = cv2.waitKey(1) & 0xFF
 
     except KeyboardInterrupt:
-        print('Stopping scanner...')
+        print(_('Stopping scanner ...'))
     finally:
          # close the output CSV file do a bit of cleanup
-        print("[INFO] cleaning up...")
+        print(_("[INFO] cleaning up..."))
         cv2.destroyAllWindows()
         vs.stop()
