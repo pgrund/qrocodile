@@ -14,10 +14,21 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: pygettext.py 1.5\n"
 
+#: qrplay.py:82
+msgid "Defaulting to last used room: "
+msgstr "Selektiere zuletzt benutzen Raum: "
+
+#: qrplay.py:85
+msgid "Initial room: "
+msgstr "Initialer Raum: "
 
 #: qrplay.py:115
 msgid "not in PI mode, LED BLINK!!!"
 msgstr "kein PI modus, LED BLINK!!!"
+
+#: qrplay.py:144
+msgid "HANDLING COMMAND: "
+msgstr "BEARBEITE KOMMANDO: "
 
 #: qrplay.py:145
 msgid "Show me a card and I'll play that song right away"
@@ -33,7 +44,36 @@ msgstr "Lass uns eine Liederliste erstellen"
 
 #: qrplay.py:153
 msgid "DELEGATING TO CONTROLLER"
-msgstr "Weiterleiten an de CONTROLLER"
+msgstr "WEITERLEITEN AN CONTROLLER"
+
+
+#: qrplay.py:172
+msgid "PLAYING DS VIDEO: "
+msgstr "SPIELE DS VIDEO: "
+
+#: qrplay.py:180
+msgid "PLAYING DS AUDIO: "
+msgstr "SPIELE DS AUDIO"
+
+#: qrplay.py:184
+msgid "UNKNOWN DS ITEM : "
+msgstr "UNBEKANNTES DS : "
+
+#: qrplay.py:187
+msgid "PLAYING FROM LIBRARY: "
+msgstr "SPIELE VON DER BIBLIOTHEK: "
+
+#: qrplay.py:200
+msgid "PLAYING FROM SPOTIFY: "
+msgstr "SPIELE VON SPOTIFY: "
+
+#: qrplay.py:218
+msgid "IGNORING REDUNDANT QRCODE: "
+msgstr "REDUNDANTEN QRCODE IGNORIEREN: "
+
+#: qrplay.py:221
+msgid "HANDLING QRCODE: "
+msgstr "BEARBEITE QRCODE: "
 
 #: qrplay.py:253
 msgid "Hello, I'm qrocodile."

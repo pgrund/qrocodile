@@ -15,9 +15,21 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 
 
+#: qrplay.py:82
+msgid "Defaulting to last used room: "
+msgstr "Defaulting to last used room: "
+
+#: qrplay.py:85
+msgid "Initial room: "
+msgstr "Initial room: "
+
 #: qrplay.py:115
 msgid "not in PI mode, LED BLINK!!!"
 msgstr "not in PI mode, LED BLINK!!!"
+
+#: qrplay.py:144
+msgid "HANDLING COMMAND: "
+msgstr "HANDLING COMMAND: "
 
 #: qrplay.py:145
 msgid "Show me a card and I'll play that song right away"
@@ -34,6 +46,34 @@ msgstr "Let's build a list of songs"
 #: qrplay.py:153
 msgid "DELEGATING TO CONTROLLER"
 msgstr "DELEGATING TO CONTROLLER"
+
+#: qrplay.py:172
+msgid "PLAYING DS VIDEO: "
+msgstr "PLAYING DS VIDEO: "
+
+#: qrplay.py:180
+msgid "PLAYING DS AUDIO: "
+msgstr "PLAYING DS AUDIO"
+
+#: qrplay.py:184
+msgid "UNKNOWN DS ITEM : "
+msgstr "UNKNOWN DS ITEM : "
+
+#: qrplay.py:187
+msgid "PLAYING FROM LIBRARY: "
+msgstr "PLAYING FROM LIBRARY: "
+
+#: qrplay.py:200
+msgid "PLAYING FROM SPOTIFY: "
+msgstr "PLAYING FROM SPOTIFY: "
+
+#: qrplay.py:218
+msgid "IGNORING REDUNDANT QRCODE: "
+msgstr "IGNORING REDUNDANT QRCODE: "
+
+#: qrplay.py:221
+msgid "HANDLING QRCODE: "
+msgstr "HANDLING QRCODE: "
 
 #: qrplay.py:253
 msgid "Hello, I'm qrocodile."
