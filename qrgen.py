@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 #
 # Copyright (c) 2018 Chris Campbell
 #
@@ -37,23 +38,33 @@ from sonoscontroller import SonosController
 from diskstationcontroller import DiskstationController
 
 from configparser import ConfigParser
+import gettext
+parser = ConfigParser(allow_no_value=True)
+parser.read('qrocodile.ini')
+
+el = gettext.translation('base', localedir='locales', languages=[
+                         parser.get('DEFAULT', 'lang', fallback="en")])
+                         
+el.install()
+_ = el.gettext
 
 # Build a map of the known commands
 # TODO: Might be better to specify these in the input file to allow for more customization
 # (instead of hardcoding names/images here)
 commands = {
-  'cmd:stop': ('Stop', 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_stop_black_48dp.png'),
-  'cmd:playpause': ('Play / Pause', 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_pause_circle_outline_black_48dp.png'),
-  'cmd:next': ('Skip to Next Song', 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_skip_next_black_48dp.png'),
-  'cmd:previous': ('Skip to Previous Song', 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_skip_previous_black_48dp.png'),
-  'cmd:turntable': ('Turntable', 'http://moziru.com/images/record-player-clipart-vector-3.jpg'),
-  'cmd:livingroom': ('Living Room', 'http://icons.iconarchive.com/icons/icons8/ios7/512/Household-Livingroom-icon.png'),
-  'cmd:diningandkitchen': ('Dining Room / Kitchen', 'https://png.icons8.com/ios/540//dining-room.png'),
-  'cmd:songonly': ('Play the Song Only', 'https://raw.githubusercontent.com/google/material-design-icons/master/image/drawable-xxxhdpi/ic_audiotrack_black_48dp.png'),
-  'cmd:wholealbum': ('Play the Whole Album', 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_album_black_48dp.png'),
-  'cmd:buildqueue': ('Build List of Songs', 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_playlist_add_black_48dp.png'),
-  'cmd:whatsong': ('What\'s Playing?', 'https://raw.githubusercontent.com/google/material-design-icons/master/action/drawable-xxxhdpi/ic_help_outline_black_48dp.png'),
-  'cmd:whatnext': ('What\'s Next?', 'https://raw.githubusercontent.com/google/material-design-icons/master/action/drawable-xxxhdpi/ic_help_outline_black_48dp.png')
+  'cmd:stop': (_('Stop'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_stop_black_48dp.png'),
+  'cmd:playpause': (_('Play / Pause'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_pause_circle_outline_black_48dp.png'),
+  'cmd:next': (_('Skip to Next Song'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_skip_next_black_48dp.png'),
+  'cmd:previous': (_('Skip to Previous Song'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_skip_previous_black_48dp.png'),
+  'cmd:turntable': (_('Turntable'), 'http://moziru.com/images/record-player-clipart-vector-3.jpg'),
+  'cmd:livingroom': (_('Living Room'), 'http://icons.iconarchive.com/icons/icons8/ios7/512/Household-Livingroom-icon.png'),
+  'cmd:diningandkitchen': (_('Dining Room / Kitchen'), 'https://png.icons8.com/ios/540//dining-room.png'),
+  'cmd:songonly': (_('Play the Song Only'), 'https://raw.githubusercontent.com/google/material-design-icons/master/image/drawable-xxxhdpi/ic_audiotrack_black_48dp.png'),
+  'cmd:wholealbum': (_('Play the Whole Album'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_album_black_48dp.png'),
+  'cmd:buildqueue': (_('Build List of Songs'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_playlist_add_black_48dp.png'),
+  'cmd:whatsong': (_('What\'s Playing?'), 'https://raw.githubusercontent.com/google/material-design-icons/master/action/drawable-xxxhdpi/ic_help_outline_black_48dp.png'),
+  'cmd:whatnext': (_('What\'s Next?'), 'https://raw.githubusercontent.com/google/material-design-icons/master/action/drawable-xxxhdpi/ic_help_outline_black_48dp.png'),
+  'cmd:clear': (_('Clear Playlist'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_not_interested_black_48dp.png')
 }
 
 # Parse the command line arguments
@@ -68,11 +79,7 @@ arg_parser.add_argument('--list-library', action='store_true',
 arg_parser.add_argument(
     '--spotify-username', help='the username used to set up Spotify access (only needed if you want to generate cards for Spotify tracks)')
 args = arg_parser.parse_args()
-print(args)
 
-
-parser = ConfigParser(allow_no_value=True)
-parser.read('controller.ini')
 
 sonos=SonosController(parser.get('sonos', 'url') if parser.has_option('sonos', 'url') else "http:localhost")
 ds=DiskstationController(
@@ -167,17 +174,22 @@ def process_library_track(controller, uri, index):
 
 
 # Return the HTML content for a single card.
-def card_content_html(index, artist, album, song):
+def card_content_html(index, artist, album, song, mode=None):
     qrimg='{0}qr.png'.format(index)
     artimg='{0}art.jpg'.format(index)
 
     html=''
+    if mode == 'dsaudio' :
+        html +='<img src="https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_library_music_black_48dp.png" class="dstype" />'
+    elif mode == 'dsvideo':
+        html +='<img src="https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_video_library_black_48dp.png" class="dstype" />'
+
     html += '  <img src="{0}" class="art"/>\n'.format(artimg)
     html += '  <img src="{0}" class="qrcode"/>\n'.format(qrimg)
     html += '  <div class="labels">\n'
     html += '    <p class="song">{0}</p>\n'.format(song)
     if artist:
-        html += '    <p class="artist"><span class="small">by</span> {0}</p>\n'.format(
+        html += '    <p class="artist"><span class="small">'+_('by')+'</span> {0}</p>\n'.format(
             artist)
     if album:
         html += '    <p class="album"><span class="small"></span> {0}</p>\n'.format(
@@ -257,6 +269,8 @@ def generate_cards():
         if not line:
             continue
 
+        mode = line.split(':')[0]
+
         if line.startswith('cmd:'):
             (song, album, artist)=process_command(line, index)
         elif line.startswith('spotify:'):
@@ -271,7 +285,7 @@ def generate_cards():
 
         # Append the HTML for this card
         html += '<div class="card">\n'
-        html += card_content_html(index, artist, album, song)
+        html += card_content_html(index, artist, album, song, mode)
         html += '</div>\n'
 
         if args.generate_images:
