@@ -39,7 +39,7 @@ body {
 
 p {
   color: black;
-  font-family: "Helvetica";
+  font-family: 'Helvetica';
   font-size: 9pt;
   width: 100%;
   margin: 10px 0 0 0;
@@ -61,4 +61,15 @@ p {
 .small {
   color: #999;
   font-size: 7pt;
+}
+
+.dstype {
+  position: relative;
+  bottom: -9em;
+  width: 2em;
+  height: 2em;
+  right: 2em;
+  margin-bottom: -3em;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 5px;
 }
