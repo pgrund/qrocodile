@@ -505,6 +505,22 @@ class DiskstationController(PlayController, GenerateController):
 
         logger.debug('==>play %s', responsePlay)
 
+    def get_current_playlist(self, device=None):
+        if not device:
+            device = self._rooms[self.current_mode]['default']
+            
+        payload = {
+            'api': 'SYNO.AudioStation.RemotePlayer',
+            'method': 'getplaylist',
+            'id': device, 
+            'additional': 'song_tag,song_audio,song_rating',
+            'offset': 0,
+            'limit': 8192,
+            'version': 3
+        }     
+        return self.perform_request(
+            'AudioStation/remote_player.cgi', payload)   
+
     def __get_audio_devices(self):
         self.current_mode = TypeMode.AUDIO
         payload = {
