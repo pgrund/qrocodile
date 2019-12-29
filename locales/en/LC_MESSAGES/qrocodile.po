@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2019-12-25 23:04+0100\n"
+"POT-Creation-Date: 2019-12-27 22:28+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,159 +15,159 @@ msgstr ""
 "Generated-By: pygettext.py 1.5\n"
 
 
-#: qrplay.py:82
-msgid "Defaulting to last used room: "
-msgstr "Defaulting to last used room: "
-
-#: qrplay.py:85
-msgid "Initial room: "
-msgstr "Initial room: "
-
-#: qrplay.py:115
-msgid "not in PI mode, LED BLINK!!!"
-msgstr "not in PI mode, LED BLINK!!!"
-
-#: qrplay.py:144
-msgid "HANDLING COMMAND: "
-msgstr "HANDLING COMMAND: "
-
-#: qrplay.py:145
-msgid "Show me a card and I'll play that song right away"
-msgstr "Show me a card and I'll play that song right away"
-
-#: qrplay.py:148
-msgid "Show me a card and I'll play the whole album"
-msgstr "Show me a card and I'll play the whole album"
-
-#: qrplay.py:151
-msgid "Let's build a list of songs"
-msgstr "Let's build a list of songs"
-
-#: qrplay.py:153
-msgid "DELEGATING TO CONTROLLER"
-msgstr "DELEGATING TO CONTROLLER"
-
-#: qrplay.py:172
-msgid "PLAYING DS VIDEO: "
-msgstr "PLAYING DS VIDEO: "
-
-#: qrplay.py:180
-msgid "PLAYING DS AUDIO: "
-msgstr "PLAYING DS AUDIO"
-
-#: qrplay.py:184
-msgid "UNKNOWN DS ITEM : "
-msgstr "UNKNOWN DS ITEM : "
-
-#: qrplay.py:187
-msgid "PLAYING FROM LIBRARY: "
-msgstr "PLAYING FROM LIBRARY: "
-
-#: qrplay.py:200
-msgid "PLAYING FROM SPOTIFY: "
-msgstr "PLAYING FROM SPOTIFY: "
-
-#: qrplay.py:218
-msgid "IGNORING REDUNDANT QRCODE: "
-msgstr "IGNORING REDUNDANT QRCODE: "
-
-#: qrplay.py:221
-msgid "HANDLING QRCODE: "
-msgstr "HANDLING QRCODE: "
-
-#: qrplay.py:253
-msgid "Hello, I'm qrocodile."
-msgstr "Hello, I'm qrocodile."
-
-#: qrplay.py:257
-msgid "Indexing the library..."
-msgstr "Indexing the library..."
-
-#: qrplay.py:258
-msgid "Please give me a moment to gather my thoughts."
-msgstr "Please give me a moment to gather my thoughts."
-
-#: qrplay.py:260
-msgid "Indexing complete!"
-msgstr "Indexing complete!"
-
-#: qrplay.py:261
-msgid "I'm ready now!"
-msgstr "I'm ready now!"
-
-#: qrplay.py:263
-msgid "Show me a card!"
-msgstr "Show me a card!"
-
-#: qrplay.py:303
-msgid "special handling play/pause, wait 5s"
-msgstr "special handling play/pause, wait 5s"
-
-#: qrplay.py:305
-msgid "... now checking again"
-msgstr "... now checking again"
-
-#: qrplay.py:317
-msgid "Stopping scanner ..."
-msgstr "Stopping scanner ..."
-
-#: qrplay.py:320
-msgid "[INFO] cleaning up..."
-msgstr "[INFO] cleaning up..."
-
-#: qrgen.py:48
+#: ./qrgen.py:55
 msgid "Stop"
 msgstr "Stop"
 
-#: qrgen.py:49
+#: ./qrgen.py:56
 msgid "Play / Pause"
 msgstr "Play / Pause"
 
-#: qrgen.py:50
+#: ./qrgen.py:57
 msgid "Skip to Next Song"
 msgstr "Skip to Next Song"
 
-#: qrgen.py:51
+#: ./qrgen.py:58
 msgid "Skip to Previous Song"
 msgstr "Skip to Previous Song"
 
-#: qrgen.py:52
+#: ./qrgen.py:59
 msgid "Turntable"
 msgstr "Turntable"
 
-#: qrgen.py:53
+#: ./qrgen.py:60
 msgid "Living Room"
 msgstr "Living Room"
 
-#: qrgen.py:54
+#: ./qrgen.py:61
 msgid "Dining Room / Kitchen"
 msgstr "Dining Room / Kitchen"
 
-#: qrgen.py:55
+#: ./qrgen.py:62
 msgid "Play the Song Only"
-msgstr "Play the Song ONly"
+msgstr "Play the Song Only"
 
-#: qrgen.py:56
+#: ./qrgen.py:63
 msgid "Play the Whole Album"
 msgstr "Play the Whole Album"
 
-#: qrgen.py:57
+#: ./qrgen.py:64
 msgid "Build List of Songs"
-msgstr "Build list of Songy"
+msgstr "Build List of Songs"
 
-#: qrgen.py:58
+#: ./qrgen.py:65
 msgid "What's Playing?"
 msgstr "What's Playing?"
 
-#: qrgen.py:59
+#: ./qrgen.py:66
 msgid "What's Next?"
 msgstr "What's Next?"
 
-#: qrgen.py:60
+#: ./qrgen.py:67
 msgid "Clear Playlist"
 msgstr "Clear Playlist"
 
-#: qrgen.py:188
+#: ./qrgen.py:192
 msgid "by"
 msgstr "by"
+
+#: ./qrplay.py:82
+msgid "Defaulting to last used room: "
+msgstr "Defaulting to last used room: "
+
+#: ./qrplay.py:85
+msgid "Initial room: "
+msgstr "Initial room: "
+
+#: ./qrplay.py:118
+msgid "not in PI mode, LED BLINK!!!"
+msgstr "not in PI mode, LED BLINK!!!"
+
+#: ./qrplay.py:144
+msgid "HANDLING COMMAND: "
+msgstr "HANDLING COMMMAND: "
+
+#: ./qrplay.py:148
+msgid "Show me a card and I'll play that song right away"
+msgstr "Show me a card and I'll play that song right away"
+
+#: ./qrplay.py:151
+msgid "Show me a card and I'll play the whole album"
+msgstr "Show me a card and I'll play the whole album"
+
+#: ./qrplay.py:154
+msgid "Let's build a list of songs"
+msgstr "Let's build a list of songs"
+
+#: ./qrplay.py:156
+msgid "DELEGATING TO CONTROLLER"
+msgstr "DELEGATING TO CONTROLLER"
+
+#: ./qrplay.py:172
+msgid "PLAYING DS VIDEO: "
+msgstr "PLAYING DS VIDEO: "
+
+#: ./qrplay.py:180
+msgid "PLAYING DS AUDIO: "
+msgstr "PLAYING DS AUDIO: "
+
+#: ./qrplay.py:184
+msgid "UNKNOWN DS ITEM : "
+msgstr "UNKNOWN DS ITEM : "
+
+#: ./qrplay.py:187
+msgid "PLAYING FROM LIBRARY: "
+msgstr "PLAYING FROM LIBRARY: "
+
+#: ./qrplay.py:200
+msgid "PLAYING FROM SPOTIFY: "
+msgstr "PLAYING FROM SPOTIFY: "
+
+#: ./qrplay.py:218
+msgid "IGNORING REDUNDANT QRCODE: "
+msgstr "IGNORING REDUNDANT QRCODE: "
+
+#: ./qrplay.py:221
+msgid "HANDLING QRCODE: "
+msgstr "HANDLING QRCODE: "
+
+#: ./qrplay.py:256
+msgid "Hello, I'm qrocodile."
+msgstr "Hello, I'm qrocodile."
+
+#: ./qrplay.py:260
+msgid "Indexing the library..."
+msgstr "Indexing the library..."
+
+#: ./qrplay.py:261
+msgid "Please give me a moment to gather my thoughts."
+msgstr "Please give me a moment to gather my thoughts."
+
+#: ./qrplay.py:263
+msgid "Indexing complete!"
+msgstr "Indexing complete!"
+
+#: ./qrplay.py:264
+msgid "I'm ready now!"
+msgstr "I'm ready now!"
+
+#: ./qrplay.py:266
+msgid "Show me a card!"
+msgstr "Show me a card!"
+
+#: ./qrplay.py:306
+msgid "special handling play/pause, wait 5s"
+msgstr "special handling play/pause, wait 5s"
+
+#: ./qrplay.py:308
+msgid "... now checking again"
+msgstr "... now checking again"
+
+#: ./qrplay.py:320
+msgid "Stopping scanner ..."
+msgstr "Stopping scanner ..."
+
+#: ./qrplay.py:323
+msgid "[INFO] cleaning up..."
+msgstr "[INFO] cleaning up..."
 
