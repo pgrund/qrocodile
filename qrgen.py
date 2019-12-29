@@ -42,7 +42,7 @@ import gettext
 parser = ConfigParser(allow_no_value=True)
 parser.read('qrocodile.ini')
 
-el = gettext.translation('base', localedir='locales', languages=[
+el = gettext.translation('qrocodile', localedir='locales', languages=[
                          parser.get('DEFAULT', 'lang', fallback="en")])
                          
 el.install()
