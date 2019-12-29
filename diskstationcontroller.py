@@ -101,17 +101,27 @@ class DiskstationController(PlayController, GenerateController):
                 'name': player['title'], 'id': player['id'], 'type': player['type']}
 
     def __set_defaults(self, default_video_room=None, default_audio_room=None):
-        if default_video_room and self._rooms['video']['players'][default_video_room]:
-            self._rooms['video']['default'] = self._rooms['video']['players'][default_video_room]['id']
+        if not default_video_room or default_video_room not in self._rooms['video']['players'].keys():
+            if len(self._rooms['video']['players']) > 0:
+                default = list(self._rooms['video']['players'].values())[0]
+                self._rooms['video']['default'] = default['id']
+                logger.info('%s not in device list, using %s instead',
+                            default_video_room, default['name'])
+            else:
+                logger.warn('no video devices found, could not set %s ',
+                            default_video_room)
         else:
-            self._rooms['video']['default'] = next(
-                iter(self._rooms['video']['players'].values()))['id']
+            self._rooms['video']['default'] = self._rooms['video']['players'][default_video_room]['id']
 
         if not default_audio_room or default_audio_room not in self._rooms['audio']['players'].keys():
-            default = list(self._rooms['audio']['players'].values())[0]
-            self._rooms['audio']['default'] = default['id']
-            logger.info('%s not in device list, using %s instead',
-                        default_audio_room, default['name'])
+            if len(self._rooms['audio']['players']) > 0:
+                default = list(self._rooms['audio']['players'].values())[0]
+                self._rooms['audio']['default'] = default['id']
+                logger.info('%s not in device list, using %s instead',
+                            default_audio_room, default['name'])
+            else:
+                logger.warn('no audio devices found, could not set %s ',
+                            default_audio_room)
         else:
             self._rooms['audio']['default'] = self._rooms['audio']['players'][default_audio_room]['id']
 
@@ -143,7 +153,11 @@ class DiskstationController(PlayController, GenerateController):
         self._rooms[self.current_mode]['sid'] = data['sid']
         return data['sid']
 
-    def switch_room(self, room, need_to_quote=True):
+    def switch_room(self, room, mode=None, need_to_quote=True):
+        if not mode:
+            pass
+        else:
+            self.switch_mode(mode)            
 
         if room in list(self._rooms[self.current_mode]['players'].keys()):
             self._rooms[self.current_mode]['default'] = self._rooms[self.current_mode]['players'][room]['id']
@@ -448,15 +462,17 @@ class DiskstationController(PlayController, GenerateController):
         else:
             logger.warn('unknown %s ...', uri)
 
-    def clear_audio(self):
+    def clear_audio(self, limit=None):
         self.current_mode = TypeMode.AUDIO
+        if not limit:
+            limit = self.get_current_playlist()['total']
 
         paramsClean = {
             'api': 'SYNO.AudioStation.RemotePlayer', 
             'method': 'updateplaylist',
             'id': self._rooms[self.current_mode]['default'],
             'offset': 0,
-            'limit': 200,
+            'limit': limit,
             'songs':'', 
             'updated_index': '-1',
             'version': 3
@@ -506,8 +522,12 @@ class DiskstationController(PlayController, GenerateController):
         logger.debug('==>play %s', responsePlay)
 
     def get_current_playlist(self, device=None):
+
         if not device:
             device = self._rooms[self.current_mode]['default']
+
+        if device.startswith('upnp'):
+            device = device[5:]
             
         payload = {
             'api': 'SYNO.AudioStation.RemotePlayer',
