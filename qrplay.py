@@ -70,8 +70,8 @@ controller = DiskstationController(
         'diskstation', 'url') else "http://diskstation:5000/webapi",
     parser.get('diskstation', 'user'),
     parser.get('diskstation', 'password'),
-    parser.get('rooms', 'tv_living_room'),
-    parser.get('rooms', 'tv_living_room')
+    '[TV]Samsung LED40',
+    'QRocodile'
 )
 
 isPI = parser.getboolean('DEFAULT', 'isPI', fallback=True)
@@ -172,7 +172,7 @@ def handle_library_item(uri):
             print(_('PLAYING DS VIDEO: ') + dsData + ' (' + dsMode + ')')
             params = json.loads(dsData)
 
-            controller.perform_room_request(None, params)
+            controller.play_video(None, params)
 
         elif dsMode == 'dsaudio':
             controller.switch_mode(TypeMode.AUDIO)
