@@ -170,6 +170,8 @@ def process_library_track(controller, uri, index):
     # Fetch the artwork and save to the output directory
     print(subprocess.check_output(['curl', arturl, '-o', artout]))
 
+    print('done:' + data)
+
     return (song, album, artist)
 
 
