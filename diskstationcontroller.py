@@ -11,7 +11,7 @@ logger.setLevel(logging.DEBUG)
 
 # create console handler and set level to debug
 ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
+ch.setLevel(logging.INFO)
 
 # create formatter
 formatter = logging.Formatter(
@@ -154,17 +154,22 @@ class DiskstationController(PlayController, GenerateController):
         return data['sid']
 
     def switch_room(self, room, mode=None, need_to_quote=True):
-        if not mode:
-            pass
-        else:
+        if mode:
             self.switch_mode(mode)            
+        try:
+            self.__check_room(room, mode)
 
-        if room in list(self._rooms[self.current_mode]['players'].keys()):
-            self._rooms[self.current_mode]['default'] = self._rooms[self.current_mode]['players'][room]['id']
+            if room in list(self._rooms[self.current_mode]['players'].keys()):
+                self._rooms[self.current_mode]['default'] = self._rooms[self.current_mode]['players'][room]['id']
+            else:
+                logger.warn('cannot switch to room %s, not found ...', room)
+            if need_to_quote:
+                logger.warning("controller is encoding at request time ...")
+        except SynologyException as se:
+            logger.error(se)
         else:
-            logger.warn('cannot switch to room %s, not found ...', room)
-        if need_to_quote:
-            logger.warning("controller is encoding at request time ...")
+            logger.info('switched %s room to \'%s\'', self.current_mode, room)
+
 
     def switch_mode(self, mode):
         try:
@@ -173,7 +178,11 @@ class DiskstationController(PlayController, GenerateController):
             self.current_mode = TypeMode.VIDEO
 
     def handle_command(self, qrcode):
-        if self.current_mode == TypeMode.AUDIO:
+        if not self._rooms[self.current_mode]['default']:
+                logger.error('no %s device set, no action available...', 'AUDIO' if self.current_mode == TypeMode.AUDIO else 'VIDEO')
+                return
+
+        if self.current_mode == TypeMode.AUDIO:            
             params = {
                 'api': "SYNO.AudioStation.RemotePlayer",
                 'method': 'control',
@@ -247,6 +256,25 @@ class DiskstationController(PlayController, GenerateController):
 
         logger.debug('URL: %s  ->%s', response.url, response.status_code)
         return _validate(response)
+
+    def __check_room(self, device = None, mode = None):
+        if not mode :
+            mode = self.current_mode
+        elif mode != TypeMode.AUDIO and mode != TypeMode.VIDEO:
+            raise SynologyException('unknown mode: '+ mode)
+
+        all_devices = self._rooms[mode]['players']
+
+        if not device in all_devices:
+            logger.warn('%s device \'%s\' not known, currently available: %s', 'AUDIO' if mode == TypeMode.AUDIO else 'VIDEO', device, ','.join(all_devices.keys()) if len(all_devices)>0 else 'NONE')
+            self.__set_players()
+            all_devices = self._rooms[mode]['players']
+            if not device in all_devices:
+                raise SynologyException('unknown device \'%s\'' % device)
+            else:
+                logger.info('device update was needed for %s', device)
+        else:
+            logger.debug('device \'%s\' found for %s', device, 'AUDIO' if mode == TypeMode.AUDIO else 'VIDEO')
 
     def perform_global_request(self, path, payload=None):
         # self.perform_request(path, payload)
@@ -479,9 +507,31 @@ class DiskstationController(PlayController, GenerateController):
             }
         self.perform_room_request("AudioStation/remote_player.cgi", paramsClean)
 
+    def play_video(self, path, payload=None):
+        if not payload:
+            payload = {}
+
+        if not 'device_id' in payload:
+            if not 'default' in self._rooms['video']:
+                logger.error('no video device to be set ...')
+                return
+            else:
+                payload['device_id'] = self._rooms['video']['default']
+
+        try:
+            self.__check_room(payload['device_id'], TypeMode.VIDEO)    
+
+            return self.perform_room_request(path, payload)
+        except SynologyException as se:
+            logger.error(se)
+
     def play_audio(self, containers_json):
         self.current_mode = TypeMode.AUDIO
         song = None
+
+        if not self._rooms[self.current_mode]['default']:
+            logger.error('no device set, cannot play music ...')
+            return
 
         if containers_json.startswith('music_'):
             song = containers_json
