@@ -101,7 +101,7 @@ msgstr "Lass uns eine Liste von Liedern erzeugen"
 
 #: ./qrplay.py:156
 msgid "DELEGATING TO CONTROLLER"
-msgstr "WIETERLEITEN AN DEN KONTROLLER"
+msgstr "WEITERLEITEN AN DEN KONTROLLER"
 
 #: ./qrplay.py:172
 msgid "PLAYING DS VIDEO: "
