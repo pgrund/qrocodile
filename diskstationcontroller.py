@@ -47,6 +47,9 @@ class ConsumerFactoryException(Exception):
 class SynologyException(Exception):
     pass
 
+class UnknownDeviceException(Exception):
+    pass
+
 
 def _validate(response):
     status = response.status_code
@@ -99,16 +102,18 @@ class DiskstationController(PlayController, GenerateController):
         for player in videos['device']:
             self._rooms['video']['players'][player['title']] = {
                 'name': player['title'], 'id': player['id'], 'type': player['type']}
+        
+        logger.info('players set: AUDIO [%s], VIDEO [%s]', ','.join(self._rooms['audio']['players'].keys()), ','.join(self._rooms['video']['players'].keys()))
 
     def __set_defaults(self, default_video_room=None, default_audio_room=None):
         if not default_video_room or default_video_room not in self._rooms['video']['players'].keys():
             if len(self._rooms['video']['players']) > 0:
                 default = list(self._rooms['video']['players'].values())[0]
                 self._rooms['video']['default'] = default['id']
-                logger.info('%s not in device list, using %s instead',
+                logger.warn('VIDEO: %s not in device list, using %s instead',
                             default_video_room, default['name'])
             else:
-                logger.warn('no video devices found, could not set %s ',
+                logger.error('no video devices found, could not set %s ',
                             default_video_room)
         else:
             self._rooms['video']['default'] = self._rooms['video']['players'][default_video_room]['id']
@@ -117,13 +122,15 @@ class DiskstationController(PlayController, GenerateController):
             if len(self._rooms['audio']['players']) > 0:
                 default = list(self._rooms['audio']['players'].values())[0]
                 self._rooms['audio']['default'] = default['id']
-                logger.info('%s not in device list, using %s instead',
+                logger.warn('AUDIO: %s not in device list, using %s instead',
                             default_audio_room, default['name'])
             else:
-                logger.warn('no audio devices found, could not set %s ',
+                logger.error('no audio devices found, could not set %s ',
                             default_audio_room)
         else:
             self._rooms['audio']['default'] = self._rooms['audio']['players'][default_audio_room]['id']
+
+        logger.info('defaults set: AUDIO [%s], VIDEO [%s]', self._rooms['audio']['default'], self._rooms['video']['default'])
 
     def __init__(self, base_url, user, password, default_video_room=None, default_audio_room=None):
 
@@ -157,7 +164,7 @@ class DiskstationController(PlayController, GenerateController):
         if mode:
             self.switch_mode(mode)            
         try:
-            self.__check_room(room, mode)
+            #self.__check_room(room, mode)
 
             if room in list(self._rooms[self.current_mode]['players'].keys()):
                 self._rooms[self.current_mode]['default'] = self._rooms[self.current_mode]['players'][room]['id']
@@ -177,63 +184,53 @@ class DiskstationController(PlayController, GenerateController):
         except:
             self.current_mode = TypeMode.VIDEO
 
-    def handle_command(self, qrcode):
-        if not self._rooms[self.current_mode]['default']:
-                logger.error('no %s device set, no action available...', 'AUDIO' if self.current_mode == TypeMode.AUDIO else 'VIDEO')
-                return
-
+    def __execute_command(self, cmd):
         if self.current_mode == TypeMode.AUDIO:            
             params = {
                 'api': "SYNO.AudioStation.RemotePlayer",
                 'method': 'control',
                 'id': self._rooms[self.current_mode]['default'],
                 'version': 2,
-                'action': 'pause'
+                'action': 'pause',
+                'value': 0
             }
+            key='action'
+            path="AudioStation/remote_player.cgi"
         else:
             params = {
                 "api": "SYNO.VideoStation2.Controller.Playback",
                 "method": "pause",
                 "version": 2
             }
+            key='method'
+            path='entry.cgi'
 
-        if qrcode == 'cmd:playpause':
-            if self.current_mode == TypeMode.AUDIO:
-                params['action'] = 'pause'
-                return self.perform_room_request("AudioStation/remote_player.cgi", params)
+        if cmd in ['pause','play','stop','next','prev']: 
+            params[key]=cmd
+            return self.perform_room_request(path, params)
+        else:       
+            return 'Hmm, I don\'t recognize that command : %s' % cmd
+
+    def handle_command(self, qrcode):
+        
+        try:
+            self.__check_room(self._rooms[self.current_mode]['default'])
+
+            cmd = qrcode[4:]
+
+            logger.info('Command execution \'%s\' on %s', cmd, self._rooms[self.current_mode]['default'])
+
+            if cmd == 'clear':
+                if self.current_mode == TypeMode.AUDIO:
+                    return self.clear_audio()                
+                else:
+                    return 'No clear command for video!!!'
+
             else:
-                params['method'] = "pause"
-                return self.perform_room_request('entry.cgi', params)
-        elif qrcode == 'cmd:stop':
-            if self.current_mode == TypeMode.AUDIO:
-                params['action'] = 'stop'
-                response = self.perform_room_request("AudioStation/remote_player.cgi", params)
-                self.clear_audio()
-                return response
-            else:
-                params['method'] = "stop"
-                return self.perform_room_request('entry.cgi', params)
-        elif qrcode == 'cmd:next':
-            if self.current_mode == TypeMode.AUDIO:
-                params['action'] = 'next'
-                return self.perform_room_request("AudioStation/remote_player.cgi", params)
-            else:
-                params['method'] = "next"
-                return self.perform_room_request('entry.cgi', params)
-        elif qrcode == 'cmd:previous':
-            if self.current_mode == TypeMode.AUDIO:
-                params['action'] = 'prev'
-                return self.perform_room_request("AudioStation/remote_player.cgi", params)
-            else:
-                params['method'] = "prev"
-                return self.perform_room_request('entry.cgi', params)
-        elif qrcode == 'cmd:clear':
-            if self.current_mode == TypeMode.AUDIO:
-                return self.clear_audio()                
-            else:
-                return 'No clear command for video!!!'
-        else:
-            return 'Hmm, I don\'t recognize that command : {}'.format(qrcode)
+                return self.__execute_command(cmd)
+        except (SynologyException, UnknownDeviceException) as se:
+            logger.error(se)
+        
 
     def perform_request(self, path, payload):
         if not payload:
@@ -241,7 +238,7 @@ class DiskstationController(PlayController, GenerateController):
 
         if not '_sid' in payload:
             if not self._rooms[self.current_mode]['sid']:
-                logger.info("need to auth first...")
+                logger.info("need to auth first for %s ...", self.current_mode)
                 self.auth(self._rooms[self.current_mode]['session'])
 
             payload['_sid'] = self._rooms[self.current_mode]['sid']
@@ -263,14 +260,14 @@ class DiskstationController(PlayController, GenerateController):
         elif mode != TypeMode.AUDIO and mode != TypeMode.VIDEO:
             raise SynologyException('unknown mode: '+ mode)
 
-        all_devices = self._rooms[mode]['players']
-
-        if not device in all_devices:
+        all_devices = [ p['id'] for p in self._rooms[mode]['players'].values() ]
+         
+        if not device in all_devices :
             logger.warn('%s device \'%s\' not known, currently available: %s', 'AUDIO' if mode == TypeMode.AUDIO else 'VIDEO', device, ','.join(all_devices.keys()) if len(all_devices)>0 else 'NONE')
             self.__set_players()
-            all_devices = self._rooms[mode]['players']
+            all_devices =  [ p['id'] for p in self._rooms[mode]['players'].values()]
             if not device in all_devices:
-                raise SynologyException('unknown device \'%s\'' % device)
+                raise UnknownDeviceException('%s (%s)' % (device, mode ))
             else:
                 logger.info('device update was needed for %s', device)
         else:
@@ -283,7 +280,7 @@ class DiskstationController(PlayController, GenerateController):
     def perform_room_request(self, path, payload=None, room=None):
         if room is None:
             if self._rooms[self.current_mode]['default'] is None:
-                raise SynologyException('no room and no default room')
+                raise UnknownDeviceException('none set (%s)' % self.current_mode) 
         elif room != self._rooms[self.current_mode]['default']:
             self.switch_room(room, False)
 
@@ -371,7 +368,6 @@ class DiskstationController(PlayController, GenerateController):
             'data': 'dsaudio:music_id='+id
         }
 
-
     def get_album(self, album, album_artist, artist=None):
 
         self.current_mode = TypeMode.AUDIO
@@ -444,7 +440,7 @@ class DiskstationController(PlayController, GenerateController):
                 break
 
         if not matchedArtist:
-            raise SynologyException('nop artist for ' + artist)
+            raise SynologyException('no artist for ' + artist)
         else:
             artist = matchedArtist['name']
 
@@ -522,54 +518,55 @@ class DiskstationController(PlayController, GenerateController):
             self.__check_room(payload['device_id'], TypeMode.VIDEO)    
 
             return self.perform_room_request(path, payload)
-        except SynologyException as se:
+        except (SynologyException, UnknownDeviceException) as se:
             logger.error(se)
+        
 
     def play_audio(self, containers_json):
         self.current_mode = TypeMode.AUDIO
+        
+        try:
+            self.__check_room(self._rooms[self.current_mode]['default'], TypeMode.AUDIO)    
+
+            self.load_audio(containers_json)        
+
+            return self.handle_command('cmd:play')
+
+        except (SynologyException, UnknownDeviceException) as se:
+            logger.error(se)
+
+
+    def load_audio(self, containers_json): 
+        self.current_mode = TypeMode.AUDIO
         song = None
 
-        if not self._rooms[self.current_mode]['default']:
-            logger.error('no device set, cannot play music ...')
-            return
+        try:
+            self.__check_room(self._rooms[self.current_mode]['default'], TypeMode.AUDIO)    
 
-        if containers_json.startswith('music_'):
-            song = containers_json
-            containers_json = '[]'
+            if containers_json.startswith('music_'):
+                song = containers_json
+                containers_json = '[]'
 
-        payloadLoad = {
-            'api': 'SYNO.AudioStation.RemotePlayer',
-            'method': 'updateplaylist',
-            'library': 'shared',
-            'id': self._rooms[self.current_mode]['default'],
-            'offset': -1,
-            'limit': 0,
-            'play': 'false',
-            'version': 3,
-            'keep_shuffle_order': 'false',
-            'containers_json': containers_json
-        }
-        if song:
-            payloadLoad['songs']=song
+            payloadLoad = {
+                'api': 'SYNO.AudioStation.RemotePlayer',
+                'method': 'updateplaylist',
+                'library': 'shared',
+                'id': self._rooms[self.current_mode]['default'],
+                'offset': -1,
+                'limit': 0,
+                'play': 'false',
+                'version': 3,
+                'keep_shuffle_order': 'false',
+                'containers_json': containers_json
+            }
+            if song:
+                payloadLoad['songs']=song
 
-        responseLoad = self.perform_request(
-            'AudioStation/remote_player.cgi', payloadLoad)
+            return self.perform_request('AudioStation/remote_player.cgi', payloadLoad)
 
-        logger.debug('==>load %s', responseLoad)
-
-        payloadPlay = {
-            'api': 'SYNO.AudioStation.RemotePlayer',
-            'method': 'control',
-            'id': self._rooms[self.current_mode]['default'],
-            'version': 3,
-            'action': 'play',
-            'value': 0
-        }
-
-        responsePlay = self.perform_request(
-            'AudioStation/remote_player.cgi', payloadPlay)
-
-        logger.debug('==>play %s', responsePlay)
+        except (SynologyException, UnknownDeviceException) as se:
+            logger.error(se)
+       
 
     def get_current_playlist(self, device=None):
 
