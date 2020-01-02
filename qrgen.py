@@ -53,9 +53,9 @@ _ = el.gettext
 # (instead of hardcoding names/images here)
 commands = {
   'cmd:stop': (_('Stop'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_stop_black_48dp.png'),
-  'cmd:playpause': (_('Play / Pause'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_pause_circle_outline_black_48dp.png'),
+  'cmd:pause': (_('Pause'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_pause_black_48dp.png'),
   'cmd:next': (_('Skip to Next Song'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_skip_next_black_48dp.png'),
-  'cmd:previous': (_('Skip to Previous Song'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_skip_previous_black_48dp.png'),
+  'cmd:prev': (_('Skip to Previous Song'), 'https://raw.githubusercontent.com/google/material-design-icons/master/av/drawable-xxxhdpi/ic_skip_previous_black_48dp.png'),
   'cmd:turntable': (_('Turntable'), 'http://moziru.com/images/record-player-clipart-vector-3.jpg'),
   'cmd:livingroom': (_('Living Room'), 'http://icons.iconarchive.com/icons/icons8/ios7/512/Household-Livingroom-icon.png'),
   'cmd:diningandkitchen': (_('Dining Room / Kitchen'), 'https://png.icons8.com/ios/540//dining-room.png'),
@@ -170,7 +170,7 @@ def process_library_track(controller, uri, index):
     # Fetch the artwork and save to the output directory
     print(subprocess.check_output(['curl', arturl, '-o', artout]))
 
-    print('done:' + data)
+    print('done: ' + data)
 
     return (song, album, artist)
 
