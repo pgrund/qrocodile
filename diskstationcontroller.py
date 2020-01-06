@@ -82,12 +82,14 @@ class DiskstationController(PlayController, GenerateController):
             'sid': None,
             'session': 'AudioStation',
             'players': {},
+            'playing': True,
             'default': None
         },
         'video': {
             'sid': None,
             'session': 'VideoStation',
             'players': {},
+            'playing': False,
             'default': None
         }
     }
@@ -149,6 +151,19 @@ class DiskstationController(PlayController, GenerateController):
                          default_video_room, default_audio_room)
         self.current_mode = TypeMode.VIDEO
 
+    def __get_playing_devices(self):
+        if self._rooms[self.current_mode]['playing']:
+            logger.debug('current mode(%s) playing, stop %s ... ',self.current_mode, self._rooms[self.current_mode]['default'])
+            return list(self._rooms[self.current_mode]['default'])
+
+        logger.warning('nothing playing in mode %s, check other mode ... ', self.current_mode)
+        self.switch_mode(TypeMode.AUDIO if self.current_mode == TypeMode.VIDEO else TypeMode.VIDEO)
+
+        modes_playing = {k: v for k, v in self._rooms.items() if v['playing']}
+        
+        return list(map(lambda m: m['default'], modes_playing.values()))
+        
+
     def auth(self, session=None):
         if not session:
             session = self._rooms[self.current_mode]['session']
@@ -181,15 +196,19 @@ class DiskstationController(PlayController, GenerateController):
     def switch_mode(self, mode):
         try:
             self.current_mode = mode
+            logger.debug('switching mode to %s', mode)
         except:
             self.current_mode = TypeMode.VIDEO
 
-    def __execute_command(self, cmd):
-        if self.current_mode == TypeMode.AUDIO:            
+    def __execute_command(self, cmd, mode=None):
+        if not mode:
+            mode = self.current_mode
+
+        if mode == TypeMode.AUDIO:            
             params = {
                 'api': "SYNO.AudioStation.RemotePlayer",
                 'method': 'control',
-                'id': self._rooms[self.current_mode]['default'],
+                'id': self._rooms[mode]['default'],
                 'version': 2,
                 'action': 'pause',
                 'value': 0
@@ -205,9 +224,17 @@ class DiskstationController(PlayController, GenerateController):
             key='method'
             path='entry.cgi'
 
-        if cmd in ['pause','play','stop','next','prev']: 
-            params[key]=cmd
-            return self.perform_room_request(path, params)
+        if cmd in ['pause','play','stop','next','prev']:             
+            params[key] = cmd
+            result = self.perform_room_request(path, params)            
+            if cmd == 'stop':
+                self._rooms[mode]['playing'] = False
+                other_devices = self.__get_playing_devices()
+                if len(other_devices) > 0:
+                    logger.info('stop other devices as well ... %s', other_devices)
+                    self.__execute_command('stop', TypeMode.AUDIO if mode == TypeMode.VIDEO else TypeMode.VIDEO)                    
+                    
+            return result
         else:       
             return 'Hmm, I don\'t recognize that command : %s' % cmd
 
@@ -517,7 +544,9 @@ class DiskstationController(PlayController, GenerateController):
         try:
             self.__check_room(payload['device_id'], TypeMode.VIDEO)    
 
-            return self.perform_room_request(path, payload)
+            result = self.perform_room_request(path, payload)
+            self._rooms['video']['playing'] = True
+            return result
         except (SynologyException, UnknownDeviceException) as se:
             logger.error(se)
         
@@ -530,7 +559,9 @@ class DiskstationController(PlayController, GenerateController):
 
             self.load_audio(containers_json)        
 
-            return self.handle_command('cmd:play')
+            result = self.handle_command('cmd:play')
+            self._rooms['audio']['playing'] = True
+            return result
 
         except (SynologyException, UnknownDeviceException) as se:
             logger.error(se)
